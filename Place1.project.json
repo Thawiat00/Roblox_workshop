@@ -1,0 +1,51 @@
+{
+  "name": "Place_1_Workshop_Core_Systems",
+  "servePort": 8000,
+  "servePlaceIds": [123345905230619],
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+
+      "Common": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+
+      "ServerShared": {
+        "$path": "src/server"
+      },
+
+      "ServerLocal": {
+        "$path": "src/ServerPlace1"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+
+        "ClientShared": {
+          "$path": "src/client"
+        },
+
+        "ClientLocal": {
+          "$path": "src/clientPlace1"
+        }
+      }
+    },
+
+    "HttpService": {
+      "$className": "HttpService",
+      "$properties": {
+        "HttpEnabled": true
+      }
+    }
+  }
+}

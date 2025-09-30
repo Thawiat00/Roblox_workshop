@@ -1,0 +1,51 @@
+{
+  "name": "Place_3_Workshop_Gameplay_Test",
+  "servePort": 8002,
+  "servePlaceIds": [110103367514478],
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+
+      "Common": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+
+      "ServerShared": {
+        "$path": "src/server"
+      },
+
+      "ServerLocal": {
+        "$path": "src/ServerPlace3"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+
+        "ClientShared": {
+          "$path": "src/client"
+        },
+
+        "ClientLocal": {
+          "$path": "src/clientPlace3"
+        }
+      }
+    },
+
+    "HttpService": {
+      "$className": "HttpService",
+      "$properties": {
+        "HttpEnabled": true
+      }
+    }
+  }
+}

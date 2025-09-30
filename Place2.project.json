@@ -1,0 +1,51 @@
+{
+  "name": "Place_2_Workshop_Lobby_Test",
+  "servePort": 8001,
+  "servePlaceIds": [105175295346802],
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+
+      "Common": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+
+      "ServerShared": {
+        "$path": "src/server"
+      },
+
+      "ServerLocal": {
+        "$path": "src/ServerPlace2"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+
+        "ClientShared": {
+          "$path": "src/client"
+        },
+
+        "ClientLocal": {
+          "$path": "src/clientPlace2"
+        }
+      }
+    },
+
+    "HttpService": {
+      "$className": "HttpService",
+      "$properties": {
+        "HttpEnabled": true
+      }
+    }
+  }
+}

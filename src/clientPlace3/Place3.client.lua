@@ -1,0 +1,1 @@
+print("This Will Only Be Synced In Place 3 as Place 3 Client Script")
