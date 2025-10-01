@@ -7,9 +7,9 @@ local enemiesFolder = workspace:WaitForChild("EnemiesFolder")
 local waypointFolder = workspace:WaitForChild("WaypointsFolder")
 local patrolPoints = waypointFolder:GetChildren()
 
-local DETECT_DISTANCE = 15  -- ระยะตรวจจับผู้เล่น
+local DETECT_DISTANCE = 30  -- ระยะตรวจจับผู้เล่น
 
-local ATTACK_DISTANCE = 20  -- ระยะที่ enemy จะฆ่าผู้เล่นทันที
+local ATTACK_DISTANCE = 5  -- ระยะที่ enemy จะฆ่าผู้เล่นทันที
 
 local function attackPlayer(player)
 	if player.Character and player.Character:FindFirstChild("Humanoid") then
@@ -111,48 +111,57 @@ local function followPath(destination)
 
 		-- 👣 Patrol Loop (เดินตาม Part ที่กำหนด)
 	local function patrol()
-		for _, point in ipairs(patrolPoints) do
-			if not enemy.Parent then return end
+	for _, point in ipairs(patrolPoints) do
+		if not enemy.Parent then return end
 
-			-- ถ้ามีผู้เล่นโผล่มากลางทาง → ขัดจังหวะ patrol ทันที
+		humanoid:MoveTo(point.Position)
+
+		-- ✅ ระหว่างเดิน patrol → ถ้าเจอ player → หยุด patrol ทันที
+		while (rootPart.Position - point.Position).Magnitude > 2 do
 			local target = findNearestPlayer()
 			if target then
 				return
 			end
-
-			humanoid:MoveTo(point.Position)
-			local reached = humanoid.MoveToFinished:Wait()
-
-			-- เผื่อจังหวะ enemy ถูกลบระหว่างรอ
-			if not reached or not enemy.Parent then
-				return
-			end
+			task.wait(0.2)
 		end
 	end
+end
 
 	task.spawn(function()
+
+
 	while enemy.Parent do
 		local target = findNearestPlayer()
 		if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-			-- ไล่ผู้เล่น
-			followPath(target.Character.HumanoidRootPart.Position)
+			-- ไล่ผู้เล่นแบบอัปเดตตำแหน่งตลอด
+			while target 
+				and target.Character 
+				and target.Character:FindFirstChild("HumanoidRootPart") 
+				and (target.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude <= DETECT_DISTANCE 
+				and enemy.Parent do
+				
+				followPath(target.Character.HumanoidRootPart.Position)
 
-			-- ✅ เช็คถ้าเข้าใกล้พอ ให้โจมตี/ฆ่าทันที
-			local distance = (target.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-			if distance <= ATTACK_DISTANCE then
-				attackPlayer(target)
+				-- โจมตีถ้าเข้าใกล้
+				local distance = (target.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+				if distance <= ATTACK_DISTANCE then
+					attackPlayer(target)
+					break
+				end
+
+				task.wait(0.5) -- คำนวณใหม่ทุก 0.5 วิ (ปรับได้)
+				target = findNearestPlayer() -- ตรวจใหม่ เผื่อผู้เล่นคนอื่นใกล้กว่า
 			end
-
-			task.wait(0.2)
 		else
-			-- ไม่มีผู้เล่นใกล้ → เดิน Patrol
+
 			patrol()
+			
 		end
 	end
 
-	-- ล้าง connection เมื่อศัตรูถูกลบ
 	disconnectConnections()
-	end)
+end)
+
 end
 
 -- 🧍 สร้าง AI ให้ Enemy ที่มีอยู่แล้ว
