@@ -7,7 +7,17 @@ local enemiesFolder = workspace:WaitForChild("EnemiesFolder")
 local waypointFolder = workspace:WaitForChild("WaypointsFolder")
 local patrolPoints = waypointFolder:GetChildren()
 
-local DETECT_DISTANCE = 10  -- ระยะตรวจจับผู้เล่น
+local DETECT_DISTANCE = 15  -- ระยะตรวจจับผู้เล่น
+
+local ATTACK_DISTANCE = 20  -- ระยะที่ enemy จะฆ่าผู้เล่นทันที
+
+local function attackPlayer(player)
+	if player.Character and player.Character:FindFirstChild("Humanoid") then
+		local humanoid = player.Character.Humanoid
+		humanoid.Health = 0  -- ฆ่าทันที
+	end
+end
+
 
 local function createAI(enemy)
 
@@ -120,22 +130,28 @@ local function followPath(destination)
 		end
 	end
 
-		-- 🔁 Main AI Loop
 	task.spawn(function()
-		while enemy.Parent do
-			local target = findNearestPlayer()
-			if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-				-- ไล่ผู้เล่น
-				followPath(target.Character.HumanoidRootPart.Position)
-				task.wait(1)
-			else
-				-- ไม่มีผู้เล่นใกล้ → เดิน Patrol
-				patrol()
-			end
-		end
+	while enemy.Parent do
+		local target = findNearestPlayer()
+		if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+			-- ไล่ผู้เล่น
+			followPath(target.Character.HumanoidRootPart.Position)
 
-		-- ล้าง connection เมื่อศัตรูถูกลบ
-		disconnectConnections()
+			-- ✅ เช็คถ้าเข้าใกล้พอ ให้โจมตี/ฆ่าทันที
+			local distance = (target.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+			if distance <= ATTACK_DISTANCE then
+				attackPlayer(target)
+			end
+
+			task.wait(0.2)
+		else
+			-- ไม่มีผู้เล่นใกล้ → เดิน Patrol
+			patrol()
+		end
+	end
+
+	-- ล้าง connection เมื่อศัตรูถูกลบ
+	disconnectConnections()
 	end)
 end
 
