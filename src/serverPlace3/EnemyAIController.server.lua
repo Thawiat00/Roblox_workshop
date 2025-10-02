@@ -6,6 +6,35 @@ local Workspace = game:GetService("Workspace")
 local enemiesFolder = workspace:WaitForChild("EnemiesFolder")
 local waypointFolder = workspace:WaitForChild("WaypointsFolder")
 
+-- 🔹 ตั้งค่า CollisionGroup สำหรับ NPC
+local PhysicsService = game:GetService("PhysicsService")
+
+local success, err = pcall(function()
+    PhysicsService:RegisterCollisionGroup("NPCs")
+end)
+if not success then
+    warn("CollisionGroup 'NPCs' อาจมีอยู่แล้ว:", err)
+end
+
+PhysicsService:CollisionGroupSetCollidable("NPCs", "NPCs", false)
+
+local function setNPCCollisionGroup(npc)
+    for _, part in pairs(npc:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CollisionGroup = "NPCs"  -- ใช้ property ของ BasePart โดยตรง
+        end
+    end
+end
+
+for _, npc in pairs(enemiesFolder:GetChildren()) do
+    setNPCCollisionGroup(npc)
+end
+
+enemiesFolder.ChildAdded:Connect(function(npc)
+    task.wait(0.1)
+    setNPCCollisionGroup(npc)
+end)
+
 local meshMaze = workspace:FindFirstChild("mesh_maze")
 
 if meshMaze and meshMaze:IsA("MeshPart") then
