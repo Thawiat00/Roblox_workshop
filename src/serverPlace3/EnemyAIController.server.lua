@@ -1,180 +1,164 @@
+-- Services
 local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
+local Workspace = game:GetService("Workspace")
 
 local enemiesFolder = workspace:WaitForChild("EnemiesFolder")
 local waypointFolder = workspace:WaitForChild("WaypointsFolder")
 
--- ✅ เทคนิคเพิ่มประสิทธิภาพ: เก็บ Vector3 แล้วลบ Part
+local meshMaze = workspace:FindFirstChild("mesh_maze")
+
+if meshMaze and meshMaze:IsA("MeshPart") then
+    print("MeshPart Name:", meshMaze.Name)
+    print("Material:", meshMaze.Material)
+    print("CanCollide:", meshMaze.CanCollide)
+else
+    warn("ไม่พบ MeshPart ชื่อ mesh_maze")
+end
+
+
+-- เก็บตำแหน่ง Vector3 ของ waypoint
 local patrolPoints = {}
 for _, part in ipairs(waypointFolder:GetChildren()) do
     table.insert(patrolPoints, part.Position)
-    part:Destroy() -- หรือ part.Parent = nil
+    part:Destroy() -- ลบ Part หลังเก็บตำแหน่ง
 end
 
-local DETECT_DISTANCE = 30  -- ระยะตรวจจับผู้เล่น
-
-local ATTACK_DISTANCE = 5  -- ระยะที่ enemy จะฆ่าผู้เล่นทันที
+local DETECT_DISTANCE = 30
+local ATTACK_DISTANCE = 5
 
 local function attackPlayer(player)
 	if player.Character and player.Character:FindFirstChild("Humanoid") then
-		local humanoid = player.Character.Humanoid
-		humanoid.Health = 0  -- ฆ่าทันที
+		player.Character.Humanoid.Health = 0
 	end
 end
 
-
-local function createAI(enemy)
-
-    	-- ✅ ตั้ง PrimaryPart สำหรับ R15
-	local humanoid = enemy:WaitForChild("Humanoid")
-	local rootPart = enemy:WaitForChild("HumanoidRootPart")
-	if not enemy.PrimaryPart then
-		enemy.PrimaryPart = rootPart
+-- 🔹 ฟังก์ชันตั้งค่า Agent อัตโนมัติ R6/R15
+local function getAgentParams(humanoid)
+	local agentRadius, agentHeight = 2, 5
+	if humanoid.RigType == Enum.HumanoidRigType.R15 then
+		agentRadius, agentHeight = 2.5, 6
 	end
+	return agentRadius, agentHeight
+end
+
+-- 🔹 สร้าง Path
+local function createPath(npc, destination)
+	local humanoid = npc:FindFirstChild("Humanoid")
+	local hrp = npc:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp then return nil end
+
+	local agentRadius, agentHeight = getAgentParams(humanoid)
 
 	local path = PathfindingService:CreatePath({
-		AgentRadius = 3,
-		AgentHeight = 5,
+		AgentRadius = agentRadius,
+		AgentHeight = agentHeight,
 		AgentCanJump = true,
-		WaypointSpacing = 4
+		AgentCanClimb = false,
+		WaypointSpacing = 4,
+		Costs = { Ice = math.huge, Wood = 5 }
 	})
 
-	local waypoints
-	local nextWaypointIndex
-	local blockedConnection
-	local reachedConnection
+	local success, err = pcall(function()
+		path:ComputeAsync(hrp.Position, destination)
+	end)
 
-	local function disconnectConnections()
-		if blockedConnection then
-			blockedConnection:Disconnect()
-			blockedConnection = nil
-		end
-		if reachedConnection then
-			reachedConnection:Disconnect()
-			reachedConnection = nil
-		end
+	if success and path.Status == Enum.PathStatus.Success then
+		return path
+	else
+		warn("Path cannot be computed for "..npc.Name..": "..tostring(err))
+		return nil
 	end
-
-
-
-	local function findNearestPlayer()
-		local nearest
-		local shortest = math.huge
-		for _, player in pairs(Players:GetPlayers()) do
-			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-				local dist = (player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-				if dist < shortest then
-					shortest = dist
-					nearest = player
-				end
-			end
-		end
-		if shortest <= DETECT_DISTANCE then
-			return nearest
-		else
-			return nil
-		end
-	end
-
-local function followPath(destination)
-		disconnectConnections()
-
-		local success, errorMessage = pcall(function()
-			path:ComputeAsync(rootPart.Position, destination)
-		end)
-
-		if success and path.Status == Enum.PathStatus.Success then
-			waypoints = path:GetWaypoints()
-			nextWaypointIndex = 2
-
-			blockedConnection = path.Blocked:Connect(function(blockedIndex)
-				if blockedIndex >= nextWaypointIndex then
-					followPath(destination)
-				end
-			end)
-
-			reachedConnection = humanoid.MoveToFinished:Connect(function(reached)
-				if reached and nextWaypointIndex <= #waypoints then
-					nextWaypointIndex += 1
-					if waypoints[nextWaypointIndex] and waypoints[nextWaypointIndex].Action == Enum.PathWaypointAction.Jump then
-						humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-					end
-					if waypoints[nextWaypointIndex] then
-						humanoid:MoveTo(waypoints[nextWaypointIndex].Position)
-					end
-				end
-			end)
-
-			if waypoints[2] then
-				humanoid:MoveTo(waypoints[2].Position)
-			end
-		else
-			warn(enemy.Name .. " failed to compute path:", errorMessage)
-		end
-	end
-
-		-- 👣 Patrol Loop (เดินตามตำแหน่ง Vector3)
-	local function patrol()
-		for _, pointPos in ipairs(patrolPoints) do
-			if not enemy.Parent then return end
-
-			humanoid:MoveTo(pointPos)
-
-			while (rootPart.Position - pointPos).Magnitude > 2 do
-				local target = findNearestPlayer()
-				if target then
-					return
-				end
-				task.wait(0.2)
-			end
-		end
-	end
-
-	task.spawn(function()
-		
-	while enemy.Parent do
-		local target = findNearestPlayer()
-		if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-			-- ไล่ผู้เล่นแบบอัปเดตตำแหน่งตลอด
-			while target 
-				and target.Character 
-				and target.Character:FindFirstChild("HumanoidRootPart") 
-				and (target.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude <= DETECT_DISTANCE 
-				and enemy.Parent do
-				
-				followPath(target.Character.HumanoidRootPart.Position)
-
-				-- โจมตีถ้าเข้าใกล้
-				local distance = (target.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-				if distance <= ATTACK_DISTANCE then
-					attackPlayer(target)
-					break
-				end
-
-				task.wait(0.5) -- คำนวณใหม่ทุก 0.5 วิ (ปรับได้)
-				target = findNearestPlayer() -- ตรวจใหม่ เผื่อผู้เล่นคนอื่นใกล้กว่า
-			end
-		else
-			patrol()
-		end
-	end
-
-	disconnectConnections()
-end)
-
 end
 
--- 🧍 สร้าง AI ให้ Enemy ที่มีอยู่แล้ว
+-- 🔹 เดินตาม Path
+local function moveAlongPath(npc, path)
+	local humanoid = npc:FindFirstChild("Humanoid")
+	if not humanoid then return false end
+	local hrp = npc:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+
+	local waypoints = path:GetWaypoints()
+	for i, wp in ipairs(waypoints) do
+		if wp.Action == Enum.PathWaypointAction.Jump then
+			humanoid:MoveTo(wp.Position)
+			humanoid.Jump = true
+		else
+			humanoid:MoveTo(wp.Position)
+		end
+		local success = humanoid.MoveToFinished:Wait()
+		if not success then return false end
+	end
+	return true
+end
+
+-- 🔹 หาผู้เล่นใกล้ที่สุด
+local function findNearestPlayer(npc, detectDistance)
+	local hrp = npc:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+
+	local nearest, shortest = nil, math.huge
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (player.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+			if dist < shortest and dist <= detectDistance then
+				shortest = dist
+				nearest = player
+			end
+		end
+	end
+	return nearest
+end
+
+-- 🔹 AI Loop สำหรับ NPC
+local function createAI(npc)
+	local humanoid = npc:WaitForChild("Humanoid")
+	local hrp = npc:WaitForChild("HumanoidRootPart")
+	if not npc.PrimaryPart then npc.PrimaryPart = hrp end
+
+	task.spawn(function()
+		local patrolIndex = 1
+		while npc.Parent do
+			local targetPlayer = findNearestPlayer(npc, DETECT_DISTANCE)
+
+			if targetPlayer then
+				-- Chase player
+				while targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and (targetPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude <= DETECT_DISTANCE and npc.Parent do
+					local path = createPath(npc, targetPlayer.Character.HumanoidRootPart.Position)
+					if path then
+						moveAlongPath(npc, path)
+					end
+					if (targetPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude <= ATTACK_DISTANCE then
+						attackPlayer(targetPlayer)
+						break
+					end
+					task.wait(0.5)
+					targetPlayer = findNearestPlayer(npc, DETECT_DISTANCE)
+				end
+			else
+				-- Patrol
+				local point = patrolPoints[patrolIndex]
+				if point then
+					local path = createPath(npc, point)
+					if path then
+						moveAlongPath(npc, path)
+					end
+					patrolIndex = patrolIndex % #patrolPoints + 1
+				end
+				task.wait(0.1)
+			end
+		end
+	end)
+end
+
+-- 🔹 เริ่ม AI สำหรับ NPC เดิม
 for _, enemy in pairs(enemiesFolder:GetChildren()) do
 	if enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
 		createAI(enemy)
 	end
 end
 
-
--- 🧠 Enemy ที่ spawn ใหม่
+-- 🔹 AI สำหรับ NPC ใหม่
 enemiesFolder.ChildAdded:Connect(function(enemy)
 	task.wait(0.1)
 	if enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
