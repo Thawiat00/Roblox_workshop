@@ -11,6 +11,17 @@ local SimpleEnemyRepository = require(game.ServerScriptService.ServerLocal.Infra
 local SimpleWalkService = require(game.ServerScriptService.ServerLocal.Application.Services.SimpleWalkService)
 local SimpleAIConfig = require(game.ServerScriptService.ServerLocal.Infrastructure.Data.SimpleAIConfig)
 
+
+-- ✨ Phase 2 Services
+local DetectionService = require(game.ServerScriptService.ServerLocal.Application.Services.DetectionService)
+local ChaseService = require(game.ServerScriptService.ServerLocal.Application.Services.ChaseService)
+local PathfindingLogicService = require(game.ServerScriptService.ServerLocal.Application.Services.PathfindingLogicService)
+
+-- ✨ Phase 2 Helpers
+local PathfindingHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.PathfindingHelper)
+local DetectionHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.DetectionHelper)
+
+
 -- Roblox Services
 local PathfindingService = game:GetService("PathfindingService")
 
@@ -41,6 +52,10 @@ function SimpleWalkController.new(model)
 	-- ==========================================
 	self.WalkService = SimpleWalkService.new(self.EnemyData)
 	
+	self.DetectionService = DetectionService.new(self.EnemyData) -- ✨ ใหม่
+    self.ChaseService = ChaseService.new(self.EnemyData)         -- ✨ ใหม่
+    self.PathfindingLogic = PathfindingLogicService.new()        -- ✨ ใหม่
+
 	-- ==========================================
 	-- โหลด Config
 	-- ==========================================
@@ -49,6 +64,18 @@ function SimpleWalkController.new(model)
 	self.WanderRadius = SimpleAIConfig.WanderRadius      -- รัศมี 30 Studs
 	self.MinWanderDistance = SimpleAIConfig.MinWanderDistance or 10
 	
+	self.DetectionRange = SimpleAIConfig.DetectionRange          -- ✨ ใหม่
+
+        -- ✨ ใหม่: config สำหรับหยุดไล่
+    self.ChaseStopRange = SimpleAIConfig.ChaseStopRange
+    self.ChaseStopDelay = SimpleAIConfig.ChaseStopDelay
+
+
+        -- ✨ ใหม่: ติดตามเวลาที่ player อยู่นอกระยะ
+    self.OutOfRangeStartTime = nil
+
+
+
 	-- ==========================================
 	-- สร้าง Pathfinding (สำหรับหาเส้นทาง)
 	-- ==========================================
@@ -58,6 +85,11 @@ function SimpleWalkController.new(model)
 		AgentCanJump = SimpleAIConfig.AgentCanJump
 	})
 	
+
+        -- ✨ สร้าง OverlapParams
+    self.OverlapParams = DetectionHelper.CreateOverlapParams(model)
+
+
 	-- เริ่มระบบ
 	self:Initialize()
 	
@@ -70,14 +102,218 @@ end
 function SimpleWalkController:Initialize()
 	-- ตั้งความเร็วเริ่มต้นเป็น 0 (หยุดก่อน)
 	self.Humanoid.WalkSpeed = 0
-	
+	self.IsActive = true  -- ✅ ต้องเปิดให้ Loop ทำงาน
+    self.IsChasing = false  -- ✅ ตั้งค่าเริ่มต้นเป็น false
+
+
 	-- เริ่ม Loop หลัก (ทำงานแบบ Async ไม่ Block)
-	task.spawn(function()
-		self:RandomWalkLoop()
-	end)
+	--task.spawn(function()
+	--	self:RandomWalkLoop()
+	--end)
+
+
+	  -- เริ่ม Main Loop (เดิน/หยุด)
+    task.spawn(function()
+        self:MainBehaviorLoop()
+    end)
+
+
+-- 🔹 เริ่มตรวจจับ player (Phase 2)
+    task.spawn(function()
+        self:DetectionLoop()
+    end)
 	
 	print("[Controller] Initialized:", self.Model.Name)
 end
+
+
+-- ==========================================
+-- ✨ DETECTION LOOP: ตรวจจับ player ทุก 0.1 วินาที
+-- ==========================================
+function SimpleWalkController:DetectionLoop()
+    while self.IsActive and self.Humanoid.Health > 0 do
+        
+        -- ถ้ากำลังไล่อยู่ - เช็คว่า target ยังอยู่ในระยะหรือไม่
+        if self.IsChasing and self.CurrentTarget then
+            
+            -- ✅ เช็คว่า target ยังมีชีวิตอยู่หรือไม่
+            if not DetectionHelper.IsTargetValid(self.CurrentTarget) then
+                print("[Controller] Target invalid, stopping chase")
+                self:StopChasing()
+                task.wait(SimpleAIConfig.DetectionCheckInterval)
+                continue
+            end
+            
+            -- ✅ เช็คระยะห่าง
+            local isOutOfRange = DetectionHelper.IsTargetOutOfRange(
+                self.RootPart.Position,
+                self.CurrentTarget,
+                self.ChaseStopRange
+            )
+            
+            if isOutOfRange then
+                -- ถ้าเพิ่งหลุดระยะ - เริ่มนับเวลา
+                if not self.OutOfRangeStartTime then
+                    self.OutOfRangeStartTime = tick()
+                    print("[Controller] Target out of range, waiting before stop...")
+                else
+                    -- เช็คว่าหลุดระยะนานพอหรือยัง
+                    local outOfRangeTime = tick() - self.OutOfRangeStartTime
+                    if outOfRangeTime >= self.ChaseStopDelay then
+                        print("[Controller] Target out of range too long, stopping chase")
+                        self:StopChasing()
+                    end
+                end
+            else
+                -- ยังอยู่ในระยะ - รีเซ็ตตัวนับเวลา
+                self.OutOfRangeStartTime = nil
+            end
+            
+        -- ถ้าไม่ได้ไล่ - มองหา player ใหม่
+        else
+            local players = DetectionHelper.FindPlayersInRange(
+                self.RootPart.Position,
+                self.DetectionRange,
+                self.OverlapParams
+            )
+            
+            if #players > 0 then
+                local nearestPlayer = DetectionHelper.FindNearestValidPlayer(
+                    self.RootPart.Position,
+                    players,
+                    PathfindingHelper
+                )
+                
+                if nearestPlayer then
+                    self:StartChasing(nearestPlayer)
+                end
+            end
+        end
+        
+        task.wait(SimpleAIConfig.DetectionCheckInterval)
+    end
+end
+
+
+-- ==========================================
+-- ✨ เริ่มไล่ player
+-- ==========================================
+function SimpleWalkController:StartChasing(targetPart)
+    if self.IsChasing then
+        -- ถ้ากำลังไล่อยู่แล้ว แค่เปลี่ยน target
+        self.CurrentTarget = targetPart
+        return
+    end
+    
+    self.IsChasing = true
+    self.CurrentTarget = targetPart
+    self.OutOfRangeStartTime = nil  -- รีเซ็ตตัวนับเวลา
+    
+    self.DetectionService:StartDetection(targetPart)
+    self.ChaseService:StartChase(targetPart)
+    
+    self.Humanoid.WalkSpeed = self.EnemyData.RunSpeed
+    
+    print("[Controller] Started chasing:", targetPart.Parent.Name)
+    
+    task.spawn(function()
+        self:ChaseLoop(targetPart)
+    end)
+end
+
+
+
+-- ==========================================
+-- ✨ CHASE LOOP: ไล่ player ตาม waypoints
+-- ==========================================
+function SimpleWalkController:ChaseLoop(targetPart)
+    while self.IsChasing and self.Humanoid.Health > 0 do
+        
+        if not self.CurrentTarget or not self.CurrentTarget.Parent then
+            self:StopChasing()
+            break
+        end
+        
+        -- ใช้ target ปัจจุบัน (อาจเปลี่ยนได้ใน DetectionLoop)
+        local success, waypoints = PathfindingHelper.ComputePath(
+            self.Path,
+            self.RootPart.Position,
+            self.CurrentTarget.Position
+        )
+        
+        if success and #waypoints > 1 then
+            local nextWaypoint = waypoints[2]
+            
+            if PathfindingHelper.ShouldJump(nextWaypoint) then
+                self.ChaseService:SetJumping()
+                self.Humanoid.Jump = true
+                task.wait(0.3)
+                self.ChaseService:ResumeChase()
+            end
+            
+            self.Humanoid:MoveTo(nextWaypoint.Position)
+            
+            local moveFinished = false
+            local moveConnection = self.Humanoid.MoveToFinished:Connect(function()
+                moveFinished = true
+            end)
+            
+            local startTime = tick()
+            repeat 
+                task.wait(0.05)
+                if tick() - startTime > 2 then
+                    break
+                end
+            until moveFinished or not self.IsChasing
+            
+            moveConnection:Disconnect()
+        else
+            warn("[Controller] Path failed, moving directly")
+            self.Humanoid:MoveTo(self.CurrentTarget.Position)
+            task.wait(0.5)
+        end
+        
+        task.wait(SimpleAIConfig.ChaseUpdateInterval)
+    end
+end
+
+
+-- ==========================================
+-- ✨ อัปเดต target ขณะไล่
+-- ==========================================
+function SimpleWalkController:UpdateChaseTarget(newTargetPart)
+    if self.ChaseService:HasTarget() then
+        self.ChaseService:StartChase(newTargetPart)
+    end
+end
+
+
+
+
+-- ==========================================
+-- ✨ หยุดไล่
+-- ==========================================
+function SimpleWalkController:StopChasing()
+
+    if not self.IsChasing then
+        return  -- ถ้าไม่ได้ไล่อยู่ ไม่ต้องทำอะไร
+    end
+
+        self.IsChasing = false
+    self.CurrentTarget = nil
+    self.OutOfRangeStartTime = nil
+    
+    -- เรียก Services
+    self.ChaseService:StopChase()
+    self.DetectionService:StopDetection()
+    
+    -- รีเซ็ตความเร็ว
+    self.Humanoid.WalkSpeed = 0
+    
+    print("[Controller] Stopped chasing")
+end
+
+
 
 -- ==========================================
 -- MAIN LOOP: วนซ้ำเดิน → หยุด → เดิน
@@ -109,6 +345,35 @@ function SimpleWalkController:RandomWalkLoop()
 	print("[Controller]", self.Model.Name, "died. Stopping AI.")
 end
 
+
+-- ==========================================
+-- MAIN BEHAVIOR LOOP: เดิน/หยุด (ทำงานเมื่อไม่ได้ไล่)
+-- ==========================================
+function SimpleWalkController:MainBehaviorLoop()
+    while self.IsActive and self.Humanoid.Health > 0 do
+        
+        -- ถ้ากำลังไล่อยู่ ข้ามไป
+        if not self.IsChasing then
+            
+            -- Phase 1: เดิน
+            self:StartWalking()
+            task.wait(self.WalkDuration)
+            
+            -- Phase 2: หยุด
+            if not self.IsChasing then
+                self:PauseWalking()
+                task.wait(self.IdleDuration)
+            end
+        else
+            -- ถ้ากำลังไล่ รอ
+            task.wait(0.5)
+        end
+    end
+    
+    print("[Controller]", self.Model.Name, "died. Stopping AI.")
+end
+
+
 -- ==========================================
 -- เริ่มเดิน: เรียก Service + อัปเดต Roblox
 -- ==========================================
@@ -124,23 +389,15 @@ end
 
 function SimpleWalkController:StartWalking()
 
+    if self.IsChasing then return end
+    
     if not self.EnemyData then
-        error("[Controller] EnemyData is nil or missing required fields!")
-    end
-
-    if type(self.EnemyData.SetState) ~= "function" then
-        error(("[Controller] EnemyData.SetState missing or not a function. EnemyData keys: %s")
-              :format(tableKeysToString(self.EnemyData)))
-    end
-
-    if not self.WalkService or type(self.WalkService.StartWalking) ~= "function" then
-        error("[Controller] WalkService is nil or missing required fields!")
+        error("[Controller] EnemyData is nil!")
     end
 
     self.WalkService:StartWalking()
-
-    self.EnemyData:SetState("Walk")
-    self.EnemyData.CurrentSpeed = self.WalkService.CurrentSpeed or self.EnemyData.WalkSpeed
+    self.EnemyData:SetState(AIState.Walk)
+    self.EnemyData.CurrentSpeed = self.EnemyData.WalkSpeed
     self.Humanoid.WalkSpeed = self.EnemyData.CurrentSpeed
 
     local randomPosition = self:GetRandomPosition()
@@ -183,8 +440,14 @@ end
 -- รีเซ็ต: กลับสู่สภาพเริ่มต้น
 -- ==========================================
 function SimpleWalkController:Reset()
-	self.WalkService:Reset()
-	self.Humanoid.WalkSpeed = 0
+    self.WalkService:Reset()
+    self.ChaseService:StopChase()
+    self.DetectionService:ResetDetection()
+    self.Humanoid.WalkSpeed = 0
+    self.IsChasing = false
+
+    self.CurrentTarget = nil --ใหม่
+    self.OutOfRangeStartTime = nil -- ใหม่
 end
 
 -- ==========================================
@@ -217,12 +480,10 @@ end
 -- เดินไปยังตำแหน่ง: ใช้ Pathfinding
 -- ==========================================
 function SimpleWalkController:MoveToPosition(targetPos)
-    if not self.EnemyData then
-        warn("[Controller] EnemyData missing")
+    if not self.EnemyData or self.IsChasing then
         return
     end
 
-    -- fallback ถ้าไม่มีฟังก์ชัน IsWalking ให้สร้าง
     if type(self.EnemyData.IsWalking) ~= "function" then
         self.EnemyData.IsWalking = function(self) 
             return (self.CurrentSpeed or 0) > 0
@@ -236,28 +497,29 @@ function SimpleWalkController:MoveToPosition(targetPos)
     if success and self.Path.Status == Enum.PathStatus.Success then
         local waypoints = self.Path:GetWaypoints()
         for i, waypoint in ipairs(waypoints) do
-            -- ตรวจสอบอีกครั้งเผื่อเป็น nil
-            if self.EnemyData and self.EnemyData.IsWalking and self.EnemyData:IsWalking() then
+            if self.EnemyData and self.EnemyData.IsWalking and self.EnemyData:IsWalking() and not self.IsChasing then
                 if waypoint.Action == Enum.PathWaypointAction.Jump then
                     self.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                 end
                 self.Humanoid:MoveTo(waypoint.Position)
+                
                 local finished = false
                 local moveConnection = self.Humanoid.MoveToFinished:Connect(function()
                     finished = true
                 end)
-                local timeoutConnection = task.delay(3, function()
-                    finished = true
-                end)
-                repeat task.wait(0.1) until finished
+                
+                local timeoutStart = tick()
+                repeat 
+                    task.wait(0.1)
+                    if self.IsChasing then break end
+                until finished or (tick() - timeoutStart > 3)
+                
                 moveConnection:Disconnect()
-                task.cancel(timeoutConnection)
             else
                 break
             end
         end
     else
-        warn("[Controller] Pathfinding failed, walking directly")
         self.Humanoid:MoveTo(targetPos)
         task.wait(2)
     end
@@ -271,9 +533,13 @@ end
 -- ==========================================
 function SimpleWalkController:Destroy()
 	-- ในอนาคตถ้ามี Connections จะ Disconnect ที่นี่
-	self.WalkService = nil
-	self.EnemyData = nil
-	print("[Controller] Destroyed:", self.Model.Name)
+    self.IsActive = false
+    self.IsChasing = false
+    self.WalkService = nil
+    self.ChaseService = nil
+    self.DetectionService = nil
+    self.EnemyData = nil
+    print("[Controller] Destroyed:", self.Model.Name)
 end
 
 return SimpleWalkController

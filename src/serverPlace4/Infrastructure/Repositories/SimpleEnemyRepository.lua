@@ -34,6 +34,10 @@ function SimpleEnemyRepository:CreateSimpleEnemy(model)
     -- ตั้งค่า properties ผ่าน helper
     HelpInfra.SetEnemyProperty(enemyData, "CurrentSpeed", SimpleAIConfig.DefaultCurrentSpeed)
     HelpInfra.SetEnemyProperty(enemyData, "WalkSpeed", SimpleAIConfig.WalkSpeed)
+    
+    HelpInfra.SetEnemyProperty(enemyData, "RunSpeed", SimpleAIConfig.RunSpeed) -- ✨ ใหม่
+
+
 
     -- ใช้ ForceBoolean สำหรับ IsWalking ให้เป็น boolean จริง
     HelpInfra.ForceBoolean(enemyData, "IsWalking", SimpleAIConfig.DefaultIsWalking)

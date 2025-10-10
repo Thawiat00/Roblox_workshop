@@ -1,0 +1,214 @@
+-- ==========================================
+-- Bootstrap/InitializeAI_Phase2.lua (Script)
+-- ==========================================
+-- วัตถุประสงค์: เริ่มระบบ AI Phase 2 (Chase + Detect)
+-- วาง Script นี้ใน ServerScriptService
+-- ==========================================
+
+print("===========================================")
+print("[Phase 2] 🎮 Starting AI Chase System")
+print("===========================================")
+
+-- ==========================================
+-- โหลด Controller (Phase 2 Version)
+-- ==========================================
+local SimpleWalkController = require(game.ServerScriptService.ServerLocal.Presentation.Controllers.SimpleWalkController)
+
+-- ==========================================
+-- โหลด Repository (Singleton)
+-- ==========================================
+local SimpleEnemyRepository = require(game.ServerScriptService.ServerLocal.Infrastructure.Repositories.SimpleEnemyRepository)
+local repo = SimpleEnemyRepository.GetInstance()
+
+-- ==========================================
+-- โหลด Config
+-- ==========================================
+local SimpleAIConfig = require(game.ServerScriptService.ServerLocal.Infrastructure.Data.SimpleAIConfig)
+
+-- ==========================================
+-- หา Enemies Folder ใน Workspace
+-- ==========================================
+local enemiesFolder = workspace:FindFirstChild("Enemies")
+
+if not enemiesFolder then
+    warn("[Phase 2] ❌ No 'Enemies' folder found in workspace!")
+    warn("[Phase 2] 💡 Please create a folder named 'Enemies' and add enemy models")
+    warn("[Phase 2] 📝 Enemy models must have: Humanoid + HumanoidRootPart")
+    return
+end
+
+-- ==========================================
+-- แสดง Config ที่ใช้งาน
+-- ==========================================
+print("[Phase 2] 📋 AI Configuration:")
+print("  • Walk Speed:", SimpleAIConfig.WalkSpeed)
+print("  • Run Speed:", SimpleAIConfig.RunSpeed)
+print("  • Detection Range:", SimpleAIConfig.DetectionRange, "studs")
+print("  • Detection Interval:", SimpleAIConfig.DetectionCheckInterval, "seconds")
+print("  • Chase Update:", SimpleAIConfig.ChaseUpdateInterval, "seconds")
+print("===========================================")
+
+-- ==========================================
+-- เริ่ม AI สำหรับทุกตัวใน Folder
+-- ==========================================
+local activeControllers = {}
+local successCount = 0
+local failCount = 0
+
+for _, enemyModel in ipairs(enemiesFolder:GetChildren()) do
+    if enemyModel:IsA("Model") and enemyModel:FindFirstChild("Humanoid") then
+        
+        local success, controllerOrError = pcall(function()
+            -- สร้าง enemy data ผ่าน repository
+            print("[Phase 2] 🔄 Creating enemy data for:", enemyModel.Name)
+            local enemyData = repo:CreateSimpleEnemy(enemyModel)
+            assert(enemyData, "[Phase 2] ❌ Failed to create enemyData for: "..enemyModel.Name)
+
+            -- สร้าง Controller (Phase 2 รวม Chase logic)
+            print("[Phase 2] 🤖 Creating controller for:", enemyModel.Name)
+            local controller = SimpleWalkController.new(enemyModel)
+            assert(controller, "[Phase 2] ❌ Failed to create controller for: "..enemyModel.Name)
+
+            return controller
+        end)
+        
+        if success then
+            table.insert(activeControllers, controllerOrError)
+            successCount = successCount + 1
+            print("[Phase 2] ✅", enemyModel.Name, "- AI Started (Walk + Chase)")
+        else
+            failCount = failCount + 1
+            warn("[Phase 2] ❌", enemyModel.Name, "- Failed:", controllerOrError)
+        end
+    else
+        warn("[Phase 2] ⚠️", enemyModel.Name, "- Invalid model (no Humanoid)")
+    end
+end
+
+-- ==========================================
+-- สรุปผล
+-- ==========================================
+print("===========================================")
+print("[Phase 2] 📊 Summary:")
+print("[Phase 2] ✅ Active AIs:", successCount)
+if failCount > 0 then
+    warn("[Phase 2] ❌ Failed:", failCount)
+end
+print("[Phase 2] 🎯 System Ready!")
+print("[Phase 2] 🔍 Enemies will detect players within", SimpleAIConfig.DetectionRange, "studs")
+print("[Phase 2] 🏃 Enemies will chase at speed", SimpleAIConfig.RunSpeed)
+print("===========================================")
+
+-- ==========================================
+-- สร้าง Global API (สำหรับ Debug/ทดสอบ)
+-- ==========================================
+_G.Phase2 = {
+    -- นับจำนวน AI ที่ทำงาน
+    GetActiveCount = function()
+        return #activeControllers
+    end,
+    
+    -- ดึง Controllers ทั้งหมด
+    GetControllers = function()
+        return activeControllers
+    end,
+    
+    -- รีเซ็ต AI ทั้งหมด
+    ResetAll = function()
+        for _, controller in ipairs(activeControllers) do
+            controller:Reset()
+        end
+        print("[Phase 2] All AIs reset")
+    end,
+    
+    -- ตรวจสอบสถานะ AI ตัวแรก
+    DebugFirstEnemy = function()
+        if #activeControllers > 0 then
+            local controller = activeControllers[1]
+            print("===========================================")
+            print("[Debug] Enemy:", controller.Model.Name)
+            print("[Debug] State:", controller.EnemyData.CurrentState)
+            print("[Debug] Speed:", controller.EnemyData.CurrentSpeed)
+            print("[Debug] Is Chasing:", controller.IsChasing)
+            print("[Debug] Has Target:", controller.EnemyData:HasTarget())
+            if controller.EnemyData:HasTarget() then
+                print("[Debug] Target:", controller.EnemyData.CurrentTarget.Parent.Name)
+            end
+            print("[Debug] Detection State:", controller.EnemyData.DetectionState)
+            print("===========================================")
+        else
+            warn("[Debug] No active enemies")
+        end
+    end,
+    
+    -- หยุด Chase ทั้งหมด (บังคับ)
+    StopAllChase = function()
+        for _, controller in ipairs(activeControllers) do
+            controller:StopChasing()
+        end
+        print("[Phase 2] All chase behaviors stopped")
+    end,
+    
+    -- แสดงสถานะทุกตัว
+    ShowAllStatus = function()
+        print("===========================================")
+        print("[Phase 2] All Enemies Status:")
+        for i, controller in ipairs(activeControllers) do
+            print(string.format(
+                "%d. %s | State: %s | Speed: %.1f | Chasing: %s",
+                i,
+                controller.Model.Name,
+                controller.EnemyData.CurrentState,
+                controller.EnemyData.CurrentSpeed,
+                tostring(controller.IsChasing)
+            ))
+        end
+        print("===========================================")
+    end,
+    
+    -- เปลี่ยน Detection Range แบบ runtime
+    SetDetectionRange = function(newRange)
+        for _, controller in ipairs(activeControllers) do
+            controller.DetectionRange = newRange
+        end
+        print("[Phase 2] Detection range changed to:", newRange)
+    end,
+    
+    -- แสดง Config
+    ShowConfig = function()
+        print("===========================================")
+        print("[Phase 2] Current Configuration:")
+        print("  • Walk Speed:", SimpleAIConfig.WalkSpeed)
+        print("  • Run Speed:", SimpleAIConfig.RunSpeed)
+        print("  • Detection Range:", SimpleAIConfig.DetectionRange)
+        print("  • Detection Interval:", SimpleAIConfig.DetectionCheckInterval)
+        print("  • Chase Update:", SimpleAIConfig.ChaseUpdateInterval)
+        print("  • Wander Radius:", SimpleAIConfig.WanderRadius)
+        print("  • Walk Duration:", SimpleAIConfig.WalkDuration)
+        print("  • Idle Duration:", SimpleAIConfig.IdleDuration)
+        print("===========================================")
+    end
+}
+
+-- ==========================================
+-- แสดงคำแนะนำการใช้งาน
+-- ==========================================
+print("\n[Phase 2] 💡 Debug Commands:")
+print("  _G.Phase2.GetActiveCount()      -- นับจำนวน AI")
+print("  _G.Phase2.DebugFirstEnemy()     -- ดูสถานะ AI ตัวแรก")
+print("  _G.Phase2.ShowAllStatus()       -- ดูสถานะทุกตัว")
+print("  _G.Phase2.ResetAll()            -- รีเซ็ต AI ทั้งหมด")
+print("  _G.Phase2.StopAllChase()        -- หยุดไล่ทั้งหมด")
+print("  _G.Phase2.SetDetectionRange(500) -- เปลี่ยนระยะตรวจจับ")
+print("  _G.Phase2.ShowConfig()          -- แสดง Config\n")
+
+-- ==========================================
+-- เฝ้าดู Player เข้าเกม (Optional)
+-- ==========================================
+game.Players.PlayerAdded:Connect(function(player)
+    print("[Phase 2] 👤 Player joined:", player.Name, "- AIs will detect them!")
+end)
+
+game.Players.PlayerRemoving:Connect(function(player)
+    print("[Phase 2] 👋 Player left:", player.Name)
+end)

@@ -10,6 +10,9 @@
 local AIState = {
     Idle = "Idle",
     Walk = "Walk",
-    Stop = "Stop"
+    Stop = "Stop",
+
+    Chase = "Chase",      -- ✨ ใหม่: วิ่งไล่ player
+    Jumping = "Jumping"   -- ✨ ใหม่: กระโดด
 }
 return AIState
