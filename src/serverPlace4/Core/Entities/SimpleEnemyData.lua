@@ -34,6 +34,17 @@ function SimpleEnemyData.new(model, suppressWarning)
     self.DetectedObject = nil                   -- object ที่ตรวจเจอ
 
 
+       -- ✨ Phase 3: Spear Dash data
+    self.SpearSpeed = 30                    -- ความเร็วตอนพุ่ง
+    self.IsDashing = false                  -- กำลังพุ่งอยู่หรือไม่
+    self.DashStartTime = nil                -- เวลาที่เริ่มพุ่ง
+    self.DashDuration = 3.5                 -- ระยะเวลาพุ่ง (3-4 วินาที)
+    self.DashDirection = nil                -- ทิศทางการพุ่ง
+    self.LastDashTime = 0                   -- เวลาครั้งล่าสุดที่พุ่ง
+    self.DashCooldown = 8                   -- คูลดาวน์ระหว่างการพุ่ง (วินาที)
+
+
+
     return self
 end
 
@@ -100,6 +111,30 @@ end
 
 
 -- ==========================================
+-- ✨ Phase 3: Dash Setters
+-- ==========================================
+function SimpleEnemyData:StartDash(direction, currentTime)
+    self.IsDashing = true
+    self.DashStartTime = currentTime or tick()
+    self.DashDirection = direction
+    self.LastDashTime = currentTime or tick()
+end
+
+function SimpleEnemyData:StopDash()
+    self.IsDashing = false
+    self.DashStartTime = nil
+    self.DashDirection = nil
+end
+
+function SimpleEnemyData:SetDashDuration(duration)
+    self.DashDuration = duration
+end
+
+
+
+
+
+-- ==========================================
 -- Getters: ตรวจสอบสถานะ (ใช้บ่อยใน Logic)
 -- ==========================================
 
@@ -122,6 +157,42 @@ function SimpleEnemyData:IsChasing()
     return self.CurrentState == AIState.Chase
 end
 
+
+-- ✨ Phase 3: Dash Getters
+function SimpleEnemyData:IsDashingState()
+    return self.CurrentState == AIState.SpearDash
+end
+
+
+function SimpleEnemyData:IsRecovering()
+    return self.CurrentState == AIState.Recover
+end
+
+function SimpleEnemyData:CanDash(currentTime)
+    local timeSinceLastDash = (currentTime or tick()) - self.LastDashTime
+    return timeSinceLastDash >= self.DashCooldown
+end
+
+function SimpleEnemyData:GetDashElapsedTime(currentTime)
+    if not self.DashStartTime then return 0 end
+    return (currentTime or tick()) - self.DashStartTime
+end
+
+function SimpleEnemyData:IsDashComplete(currentTime)
+    return self:GetDashElapsedTime(currentTime) >= self.DashDuration
+end
+
+
+-- ==========================================
+-- Phase 2: Detection
+-- ==========================================
+function SimpleEnemyData:IsDetecting()
+    return self.DetectionState == DetectionState.Start_Detect
+end
+
+function SimpleEnemyData:HasTarget()
+    return self.CurrentTarget ~= nil
+end
 
 
 return SimpleEnemyData

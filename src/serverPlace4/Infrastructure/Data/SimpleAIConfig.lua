@@ -1,7 +1,11 @@
 local SimpleAIConfig = {
 		-- ความเร็ว
 	WalkSpeed = 8,
-	  RunSpeed = 15,  -- ✨ ใหม่: ความเร็วตอนไล่
+	RunSpeed = 15,  -- ✨ ใหม่: ความเร็วตอนไล่
+
+
+	-- ✨ Phase 3: Spear Dash Speed
+    SpearSpeed = 30,                    -- ความเร็วตอนพุ่ง (เร็วกว่า RunSpeed 2 เท่า)
 	
 	-- ช่วงเวลา
 	WalkDuration = 5,
@@ -24,6 +28,31 @@ local SimpleAIConfig = {
 	-- ✨ ใหม่: Chase Config
     ChaseUpdateInterval = 0.1,  -- อัปเดต path ทุก 0.1 วินาที
     WaypointSpacing = 32,       -- ระยะห่าง waypoint
+
+
+	-- ✨ Phase 3: Spear Dash Config
+  --  DashMinDistance = 60,               -- ระยะขั้นต่ำที่จะพุ่ง (studs)
+  --  DashMaxDistance = 100,              -- ระยะสูงสุดที่จะพุ่ง (studs)
+	DashMinDistance = 2,
+	DashMaxDistance = 25,
+
+
+
+    DashDurationMin = 3,                -- ระยะเวลาพุ่งขั้นต่ำ (วินาที)
+    DashDurationMax = 4,                -- ระยะเวลาพุ่งสูงสุด (วินาที)
+    DashCooldown = 8,                   -- คูลดาวน์ระหว่างการพุ่ง (วินาที)
+    DashChance = 0.3,                   -- โอกาสที่จะพุ่ง (30%)
+    DashCheckInterval = 0.5,            -- เช็คโอกาสพุ่งทุก 0.5 วินาที
+
+
+	-- ✨ Phase 3: Knockback Config
+    KnockbackForce = 1500,              -- แรงกระเด็น (Base value)
+    KnockbackUpwardMultiplier = 0.3,    -- แรงกระเด็นขึ้น (30% ของแรงหลัก)
+    
+    -- ✨ Phase 3: Recovery Config
+    RecoverDuration = 1.5,              -- ระยะเวลาพักหลังพุ่ง (วินาที)
+    
+
 
 	-- Pathfinding
 	AgentRadius = 2,

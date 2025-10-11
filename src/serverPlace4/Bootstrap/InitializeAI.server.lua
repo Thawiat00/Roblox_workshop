@@ -12,7 +12,8 @@ local CONFIG = {
     -- เปิด/ปิด Phase ต่างๆ
     EnablePhase1 = true,  -- true = เดินสำรวจอย่างเดียว (ไม่ไล่ player)
     EnablePhase2 = true,  -- true = เพิ่มการไล่ player (ต้องเปิด Phase1 ด้วย)
-    
+    EnablePhase3 = true,  -- ✨ พุ่งใส่ player + knockback
+
     -- Debug Options
     ShowDetailedLogs = true,  -- แสดง log ละเอียด
     ShowConfig = true,        -- แสดง config ตอนเริ่ม
@@ -21,6 +22,13 @@ local CONFIG = {
     AutoStart = true,         -- เริ่ม AI อัตโนมัติเลย
     StartDelay = 1,           -- รอกี่วินาทีก่อนเริ่ม (ให้ระบบโหลดก่อน)
 }
+
+-- ตรวจสอบ Dependencies
+if CONFIG.EnablePhase3 and not CONFIG.EnablePhase2 then
+    warn("[AI System] ⚠️ Phase 3 requires Phase 2 to be enabled!")
+    CONFIG.EnablePhase2 = true
+end
+
 
 -- ตรวจสอบ Config
 if CONFIG.EnablePhase2 and not CONFIG.EnablePhase1 then
@@ -32,7 +40,10 @@ end
 -- แสดงหัวข้อ
 -- ==========================================
 print("===========================================")
-if CONFIG.EnablePhase1 and CONFIG.EnablePhase2 then
+if CONFIG.EnablePhase1 and CONFIG.EnablePhase2 and CONFIG.EnablePhase3 then
+    print("[AI System] 🎮 Starting AI System (Phase 1 + 2 + 3)")
+    print("[AI System] ✅ Walk + Chase + Spear Dash Enabled")
+elseif CONFIG.EnablePhase1 and CONFIG.EnablePhase2 then
     print("[AI System] 🎮 Starting AI System (Phase 1 + 2)")
     print("[AI System] ✅ Walk + Chase Enabled")
 elseif CONFIG.EnablePhase1 then
@@ -87,6 +98,17 @@ if CONFIG.ShowConfig then
         print("  • Detection Range:", SimpleAIConfig.DetectionRange, "studs")
         print("  • Detection Interval:", SimpleAIConfig.DetectionCheckInterval, "seconds")
         print("  • Chase Update:", SimpleAIConfig.ChaseUpdateInterval, "seconds")
+    end
+
+
+    if CONFIG.EnablePhase3 then
+        print("  • Spear Speed:", SimpleAIConfig.SpearSpeed)
+        print("  • Dash Min Distance:", SimpleAIConfig.DashMinDistance, "studs")
+        print("  • Dash Max Distance:", SimpleAIConfig.DashMaxDistance, "studs")
+        print("  • Dash Chance:", SimpleAIConfig.DashChance * 100, "%")
+        print("  • Dash Duration:", SimpleAIConfig.DashDurationMin, "-", SimpleAIConfig.DashDurationMax, "seconds")
+        print("  • Knockback Force:", SimpleAIConfig.KnockbackForce)
+        print("  • Recover Duration:", SimpleAIConfig.RecoverDuration, "seconds")
     end
     
     print("  • Wander Radius:", SimpleAIConfig.WanderRadius)
@@ -212,6 +234,8 @@ for _, enemyModel in ipairs(enemiesFolder:GetChildren()) do
             local features = {}
             if CONFIG.EnablePhase1 then table.insert(features, "Walk") end
             if CONFIG.EnablePhase2 then table.insert(features, "Chase") end
+            if CONFIG.EnablePhase3 then table.insert(features, "Dash") end
+
             
             local statusIcon = (CONFIG.AutoStart and startedCount == successCount) and "✅" or "⚠️"
             print("[AI System]", statusIcon, enemyModel.Name, "- AI Controller Created (" .. table.concat(features, " + ") .. ")")
@@ -252,6 +276,14 @@ if CONFIG.EnablePhase2 then
     print("[AI System] 🏃 Enemies will chase at speed", SimpleAIConfig.RunSpeed)
 end
 
+
+if CONFIG.EnablePhase3 then
+    print("[AI System] 🚀 Enemies can dash at speed", SimpleAIConfig.SpearSpeed, "when player is", SimpleAIConfig.DashMinDistance, "-", SimpleAIConfig.DashMaxDistance, "studs away")
+    print("[AI System] 💥 Knockback force:", SimpleAIConfig.KnockbackForce)
+    print("[AI System] 🎲 Dash chance:", SimpleAIConfig.DashChance * 100, "%")
+end
+
+
 print("===========================================")
 
 -- ==========================================
@@ -262,6 +294,7 @@ _G.AISystem = {
     Config = CONFIG,
     Phase1Enabled = CONFIG.EnablePhase1,
     Phase2Enabled = CONFIG.EnablePhase2,
+    Phase3Enabled = CONFIG.EnablePhase3,
     
     -- นับจำนวน AI
     GetActiveCount = function()
@@ -339,6 +372,17 @@ _G.AISystem = {
                     end
                     print("[Debug] Detection State:", controller.EnemyData.DetectionState or "N/A")
                 end
+
+
+                 if CONFIG.EnablePhase3 then
+                    print("[Debug] 🚀 Is Dashing:", controller.EnemyData.IsDashing or false)
+                    print("[Debug] 😮‍💨 Is Recovering:", controller.EnemyData:IsRecovering())
+                    print("[Debug] ⏳ Can Dash:", controller.EnemyData:CanDash(tick()))
+                    if controller.DashService then
+                        print("[Debug] 🎯 Dash Direction:", controller.DashService:GetDashDirection())
+                    end
+                end
+
             else
                 print("[Debug] Has EnemyData:", false)
             end
@@ -351,6 +395,9 @@ _G.AISystem = {
             if controller.StopWalking then print("  • StopWalking()") end
             if controller.StartChasing then print("  • StartChasing()") end
             if controller.StopChasing then print("  • StopChasing()") end
+
+            if controller.StartDashing then print("  • StartDashing()") end
+
             
             print("===========================================")
         else
@@ -379,6 +426,12 @@ _G.AISystem = {
                 if CONFIG.EnablePhase2 then
                     status = status .. string.format(" | Chasing: %s", tostring(controller.IsChasing or false))
                 end
+
+
+                if CONFIG.EnablePhase3 then
+                    status = status .. string.format(" | Dashing: %s", tostring(controller.EnemyData.IsDashing or false))
+                end
+
             else
                 status = status .. " | No EnemyData"
             end
@@ -395,6 +448,10 @@ _G.AISystem = {
         print("[AI System] Current Configuration:")
         print("  • Phase 1 (Walk):", CONFIG.EnablePhase1)
         print("  • Phase 2 (Chase):", CONFIG.EnablePhase2)
+
+        print("  • Phase 3 (Dash):", CONFIG.EnablePhase3)
+
+
         print("  • Auto Start:", CONFIG.AutoStart)
         print("  • Walk Speed:", SimpleAIConfig.WalkSpeed)
         
@@ -405,6 +462,13 @@ _G.AISystem = {
             print("  • Chase Update:", SimpleAIConfig.ChaseUpdateInterval)
         end
         
+
+        if CONFIG.EnablePhase3 then
+            print("  • Spear Speed:", SimpleAIConfig.SpearSpeed)
+            print("  • Dash Range:", SimpleAIConfig.DashMinDistance, "-", SimpleAIConfig.DashMaxDistance)
+            print("  • Knockback Force:", SimpleAIConfig.KnockbackForce)
+        end
+
         print("  • Wander Radius:", SimpleAIConfig.WanderRadius)
         print("  • Walk Duration:", SimpleAIConfig.WalkDuration)
         print("  • Idle Duration:", SimpleAIConfig.IdleDuration)
@@ -497,6 +561,105 @@ if CONFIG.EnablePhase2 then
     end
 end
 
+
+
+-- ==========================================
+-- ✨ Phase 3 Commands
+-- ==========================================
+if CONFIG.EnablePhase3 then
+    -- บังคับให้พุ่งใส่ player ใกล้ที่สุด
+    _G.AISystem.ForceDashNearestPlayer = function()
+        local players = game.Players:GetPlayers()
+        if #players == 0 then
+            warn("[AI System] No players in game")
+            return
+        end
+        
+        local dashCount = 0
+        for _, controller in ipairs(activeControllers) do
+            -- หา player ใกล้ที่สุด
+            local nearestPlayer = nil
+            local shortestDistance = math.huge
+            
+            for _, player in ipairs(players) do
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local distance = (controller.RootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+                    if distance < shortestDistance then
+                        nearestPlayer = player.Character.HumanoidRootPart
+                        shortestDistance = distance
+                    end
+                end
+            end
+            
+            -- บังคับพุ่ง
+            if nearestPlayer and controller.StartDashing then
+                -- ตั้ง target ก่อน
+                controller.CurrentTarget = nearestPlayer
+                controller.IsChasing = true
+                
+                controller:StartDashing()
+                dashCount = dashCount + 1
+            end
+        end
+        
+        print("[AI System] 🚀", dashCount, "enemies forced to dash at nearest player")
+    end
+    
+    -- เปลี่ยนโอกาสพุ่ง
+    _G.AISystem.SetDashChance = function(newChance)
+        if newChance < 0 or newChance > 1 then
+            warn("[AI System] Dash chance must be between 0 and 1")
+            return
+        end
+        
+        SimpleAIConfig.DashChance = newChance
+        print("[AI System] 🎲 Dash chance changed to:", newChance * 100, "%")
+    end
+    
+    -- เปลี่ยนแรง Knockback
+    _G.AISystem.SetKnockbackForce = function(newForce)
+        SimpleAIConfig.KnockbackForce = newForce
+        print("[AI System] 💥 Knockback force changed to:", newForce)
+    end
+    
+    -- เปลี่ยนระยะ Dash
+    _G.AISystem.SetDashRange = function(minDistance, maxDistance)
+        SimpleAIConfig.DashMinDistance = minDistance
+        SimpleAIConfig.DashMaxDistance = maxDistance
+        print("[AI System] 🎯 Dash range changed to:", minDistance, "-", maxDistance, "studs")
+    end
+    
+    -- แสดงสถิติ Dash
+    _G.AISystem.ShowDashStats = function()
+        print("===========================================")
+        print("[AI System] 🚀 Dash Statistics:")
+        local dashingCount = 0
+        local recoveringCount = 0
+        local canDashCount = 0
+        
+        for _, controller in ipairs(activeControllers) do
+            if controller.DashService then
+                if controller.DashService:IsDashing() then
+                    dashingCount = dashingCount + 1
+                end
+                if controller.DashService:IsRecovering() then
+                    recoveringCount = recoveringCount + 1
+                end
+                if controller.DashService:CanDash() then
+                    canDashCount = canDashCount + 1
+                end
+            end
+        end
+        
+        print("  • Currently Dashing:", dashingCount)
+        print("  • Currently Recovering:", recoveringCount)
+        print("  • Ready to Dash:", canDashCount)
+        print("  • Total Enemies:", #activeControllers)
+        print("===========================================")
+    end
+end
+
+
 -- ==========================================
 -- แสดงคำแนะนำ
 -- ==========================================
@@ -516,6 +679,19 @@ if CONFIG.EnablePhase2 then
     print("  _G.AISystem.SetDetectionRange(500) -- เปลี่ยนระยะตรวจจับ")
     print("  _G.AISystem.ForceChaseNearestPlayer() -- บังคับไล่ player ใกล้ที่สุด")
 end
+
+
+
+if CONFIG.EnablePhase3 then
+    print("\n[AI System] 🚀 Phase 3 Commands:")
+    print("  _G.AISystem.ForceDashNearestPlayer() -- บังคับพุ่งใส่ player ใกล้ที่สุด")
+    print("  _G.AISystem.SetDashChance(0.5)      -- เปลี่ยนโอกาสพุ่ง (0-1)")
+    print("  _G.AISystem.SetKnockbackForce(2000) -- เปลี่ยนแรงกระเด็น")
+    print("  _G.AISystem.SetDashRange(50, 120)   -- เปลี่ยนระยะพุ่ง (min, max)")
+    print("  _G.AISystem.ShowDashStats()         -- ดูสถิติการพุ่ง")
+end
+
+
 
 print("")
 
@@ -558,7 +734,15 @@ enemiesFolder.ChildAdded:Connect(function(child)
         
         if success then
             table.insert(activeControllers, controller)
-            print("[AI System] ✅", child.Name, "- AI Started")
+
+             local features = {}
+            if CONFIG.EnablePhase1 then table.insert(features, "Walk") end
+            if CONFIG.EnablePhase2 then table.insert(features, "Chase") end
+            if CONFIG.EnablePhase3 then table.insert(features, "Dash") end
+
+            print("[AI System] ✅", child.Name, "- AI Started (" .. table.concat(features, " + ") .. ")")
+
+            --print("[AI System] ✅", child.Name, "- AI Started")
         else
             warn("[AI System] ❌", child.Name, "- Failed to initialize")
         end

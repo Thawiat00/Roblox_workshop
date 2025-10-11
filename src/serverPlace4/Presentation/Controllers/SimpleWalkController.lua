@@ -6,6 +6,14 @@
 -- หน้าที่: เชื่อมต่อ Business Logic กับ Roblox Instances
 -- ==========================================
 
+
+-- ==========================================
+-- Presentation/Controllers/SimpleWalkController.lua (ModuleScript)
+-- ==========================================
+-- Phase 3: เพิ่ม Spear Dash & Knockback System
+-- ==========================================
+
+
 local AIState = require(game.ServerScriptService.ServerLocal.Core.Enums.AIState)
 local SimpleEnemyRepository = require(game.ServerScriptService.ServerLocal.Infrastructure.Repositories.SimpleEnemyRepository)
 local SimpleWalkService = require(game.ServerScriptService.ServerLocal.Application.Services.SimpleWalkService)
@@ -17,13 +25,32 @@ local DetectionService = require(game.ServerScriptService.ServerLocal.Applicatio
 local ChaseService = require(game.ServerScriptService.ServerLocal.Application.Services.ChaseService)
 local PathfindingLogicService = require(game.ServerScriptService.ServerLocal.Application.Services.PathfindingLogicService)
 
+-- ✨ Phase 3 Service
+local SpearDashService = require(game.ServerScriptService.ServerLocal.Application.Services.SpearDashService)
+
+
+
+
+
 -- ✨ Phase 2 Helpers
 local PathfindingHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.PathfindingHelper)
 local DetectionHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.DetectionHelper)
 
 
+-- ✨ Phase 3 Helper
+local DashHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.DashHelper)
+
+
+
+
+
 -- Roblox Services
 local PathfindingService = game:GetService("PathfindingService")
+
+
+
+
+
 
 local SimpleWalkController = {}
 SimpleWalkController.__index = SimpleWalkController
@@ -56,6 +83,12 @@ function SimpleWalkController.new(model)
     self.ChaseService = ChaseService.new(self.EnemyData)         -- ✨ ใหม่
     self.PathfindingLogic = PathfindingLogicService.new()        -- ✨ ใหม่
 
+    -- ✨ Phase 3: Spear Dash Service
+    self.DashService = SpearDashService.new(self.EnemyData)
+
+
+
+
 	-- ==========================================
 	-- โหลด Config
 	-- ==========================================
@@ -71,8 +104,19 @@ function SimpleWalkController.new(model)
     self.ChaseStopDelay = SimpleAIConfig.ChaseStopDelay
 
 
-        -- ✨ ใหม่: ติดตามเวลาที่ player อยู่นอกระยะ
+    -- ✨ Phase 3: Dash Config
+    self.DashMinDistance = SimpleAIConfig.DashMinDistance
+    self.DashMaxDistance = SimpleAIConfig.DashMaxDistance
+    self.DashCheckInterval = SimpleAIConfig.DashCheckInterval
+    self.RecoverDuration = SimpleAIConfig.RecoverDuration
+
+
+
+
+
+    -- State tracking
     self.OutOfRangeStartTime = nil
+    self.OverlapParams = DetectionHelper.CreateOverlapParams(model)
 
 
 
@@ -86,15 +130,54 @@ function SimpleWalkController.new(model)
 	})
 	
 
-        -- ✨ สร้าง OverlapParams
-    self.OverlapParams = DetectionHelper.CreateOverlapParams(model)
-
+    -- ✨ Phase 3: Setup Touched Connection สำหรับ Knockback
+    self:SetupKnockbackDetection()
+    
 
 	-- เริ่มระบบ
 	self:Initialize()
 	
 	return self
 end
+
+
+
+-- ==========================================
+-- ✨ Phase 3: Setup Knockback Detection
+-- ==========================================
+function SimpleWalkController:SetupKnockbackDetection()
+    -- เชื่อม Touched event กับ RootPart
+    self.TouchConnection = self.RootPart.Touched:Connect(function(hit)
+        -- ตรวจสอบว่ากำลัง Dash อยู่หรือไม่
+        if not self.DashService:IsDashing() then
+            return
+        end
+        
+        -- ตรวจสอบว่าเป็น Player หรือไม่
+        if not DashHelper.IsPlayerPart(hit) then
+            return
+        end
+        
+        -- ดึง HumanoidRootPart ของ Player
+        local playerRootPart = DashHelper.GetPlayerRootPart(hit)
+        if not playerRootPart then
+            return
+        end
+        
+        -- Apply Knockback
+        local dashDirection = self.DashService:GetDashDirection()
+        if dashDirection then
+            local success = DashHelper.ApplyKnockback(playerRootPart, dashDirection)
+            if success then
+                print("[Controller] 💥 Knockback applied to:", hit.Parent.Name)
+            end
+        end
+    end)
+    
+    print("[Controller] ✅ Knockback detection setup complete")
+end
+
+
 
 -- ==========================================
 -- Initialize: ตั้งค่าเริ่มต้นและเริ่ม Loop
@@ -122,9 +205,217 @@ function SimpleWalkController:Initialize()
     task.spawn(function()
         self:DetectionLoop()
     end)
-	
+
+     -- ✨ Phase 3: Dash Check Loop
+    task.spawn(function()
+        self:DashCheckLoop()
+    end)
+
+
+
 	print("[Controller] Initialized:", self.Model.Name)
 end
+
+
+
+-- ==========================================
+-- ✨ Phase 3: DASH CHECK LOOP
+-- ตรวจสอบโอกาสพุ่งเมื่อ Chase และอยู่ในระยะที่เหมาะสม
+-- ==========================================
+function SimpleWalkController:DashCheckLoop()
+    while self.IsActive and self.Humanoid.Health > 0 do
+        
+        if self.IsChasing and self.CurrentTarget then
+            print("[Debug] 🟢 DashCheckLoop active | Target:", self.CurrentTarget.Name)
+
+            -- STEP 1: ตรวจสอบ cooldown
+            local canDash = self.DashService:CanDash()
+            print("[Debug] Step 1 | CanDash:", canDash)
+            if not canDash then
+                task.wait(self.DashCheckInterval)
+                continue
+            end
+
+            -- STEP 2: ตรวจสอบว่า target มี Position ไหม
+            if not (self.RootPart and self.CurrentTarget and self.CurrentTarget.Position) then
+                warn("[Debug] Step 2 | Missing position data")
+                task.wait(self.DashCheckInterval)
+                continue
+            end
+
+            -- STEP 3: คำนวณระยะ
+            local distance = DashHelper.GetDistance(
+                self.RootPart.Position,
+                self.CurrentTarget.Position
+            )
+            print("[Debug] Step 3 | Distance to target:", distance)
+
+            -- STEP 4: ตรวจสอบว่าระยะอยู่ในช่วงหรือไม่
+            local inRange = DashHelper.IsInDashRange(distance)
+            print("[Debug] Step 4 | InDashRange:", inRange, 
+                "(Min:", self.DashMinDistance, 
+                "Max:", self.DashMaxDistance, ")")
+            if not inRange then
+                task.wait(self.DashCheckInterval)
+                continue
+            end
+
+            -- STEP 5: ตรวจสอบว่า ShouldDash ผ่านไหม
+            local shouldDash = DashHelper.ShouldDash()
+            print("[Debug] Step 5 | ShouldDash:", shouldDash)
+            if not shouldDash then
+                task.wait(self.DashCheckInterval)
+                continue
+            end
+
+            -- STEP 6: ผ่านทุกเงื่อนไข เตรียมพุ่ง
+            print("[Debug] ✅ All dash conditions met | Distance:", distance)
+            self:StartDashing()
+        end
+
+        task.wait(self.DashCheckInterval)
+    end
+end
+
+
+
+-- ==========================================
+-- ✨ Phase 3: เริ่มพุ่ง
+-- ==========================================
+function SimpleWalkController:StartDashing()
+    if not self.CurrentTarget then
+        warn("[Controller] Cannot dash: no target")
+        return
+    end
+    
+     -- 🔹 เพิ่มการเช็คว่า target เป็น Player หรือไม่
+    local player = game.Players:GetPlayerFromCharacter(self.CurrentTarget.Parent)
+    if not player then
+        warn("[Controller] Cannot dash: target is not a player")
+        return
+    end
+
+       -- คำนวณทิศทางการพุ่ง
+    local dashDirection = DashHelper.CalculateDashDirection(
+        self.RootPart.Position,
+        self.CurrentTarget.Position
+    )
+
+
+        -- สุ่มระยะเวลาการพุ่ง
+    local dashDuration = DashHelper.GetRandomDashDuration()
+
+
+        -- เรียก Service
+    local success = self.DashService:StartDash(
+        self.CurrentTarget,
+        dashDirection,
+        dashDuration
+    )
+
+    -- คำนวณทิศทางการพุ่ง
+    local dashDirection = DashHelper.CalculateDashDirection(
+        self.RootPart.Position,
+        self.CurrentTarget.Position
+    )
+    
+    -- สุ่มระยะเวลาการพุ่ง
+    local dashDuration = DashHelper.GetRandomDashDuration()
+    
+    -- เรียก Service
+    local success = self.DashService:StartDash(
+        self.CurrentTarget,
+        dashDirection,
+        dashDuration
+    )
+    
+    if success then
+        -- อัปเดตความเร็ว Humanoid
+        self.Humanoid.WalkSpeed = self.EnemyData.SpearSpeed
+        
+        print("[Controller] 🚀 Started dashing at speed:", self.EnemyData.SpearSpeed)
+        
+        -- เริ่ม Dash Loop
+        task.spawn(function()
+            self:DashLoop()
+        end)
+    end
+end
+
+
+-- ==========================================
+-- ✨ Phase 3: DASH LOOP - พุ่งตรงไปยัง target
+-- ==========================================
+function SimpleWalkController:DashLoop()
+
+    local hitPlayers = {} -- เก็บ Player ที่โดนแล้วเพื่อไม่กระเด็นซ้ำ
+
+
+
+    while self.IsActive and self.Humanoid.Health > 0 and self.DashService:IsDashing() do
+        
+         -- ตรวจสอบว่า target ยังมีอยู่หรือไม่
+        if not self.CurrentTarget or not self.CurrentTarget.Parent then
+            print("[Controller] ❌ Target lost during dash")
+            self.DashService:StopDash()
+            break
+        end
+        
+        -- 🔹 เพิ่มบรรทัดนี้: ตรวจ collision กับ player
+        --self.DashService:OnDashHit(self.CurrentTarget.Parent)
+             -- 🔹 ตรวจสอบเฉพาะ Player เท่านั้น
+        local player = game.Players:GetPlayerFromCharacter(self.CurrentTarget.Parent)
+        if not player then
+            print("[Controller] ❌ Target is not a player, stopping dash")
+            self.DashService:StopDash()
+            break
+        end
+
+            -- เคลื่อนที่ตรงไปยัง target (ไม่ใช้ pathfinding)
+        self.Humanoid:MoveTo(self.CurrentTarget.Position)
+
+
+            -- 🔹 ตรวจสอบการชนกับ Player (ไม่ชนซ้ำ)
+        if not hitPlayers[player] then
+            self.DashService:OnDashHit(self.CurrentTarget.Parent)
+            hitPlayers[player] = true -- mark ว่าโดนแล้ว
+            print("[Controller] 💥 Hit player:", player.Name)
+        end
+
+
+        -- ตรวจสอบว่าครบเวลาพุ่งหรือยัง
+        if self.DashService:IsDashComplete() then
+            print("[Controller] ⏱️ Dash completed!")
+            self:StartRecovering()
+            break
+        end
+        
+        task.wait(0.05) -- อัปเดตบ่อยเพื่อความแม่นยำ
+    end
+end
+
+
+-- ==========================================
+-- ✨ Phase 3: เข้าสู่สถานะ Recover
+-- ==========================================
+function SimpleWalkController:StartRecovering()
+    self.DashService:StartRecover()
+    self.Humanoid.WalkSpeed = 0
+    
+    print("[Controller] 😮‍💨 Recovering...")
+    
+    -- รอจนครบเวลา Recover
+    task.wait(self.RecoverDuration)
+    
+    -- กลับไป Chase
+    self.DashService:ResumeChase()
+    self.Humanoid.WalkSpeed = self.EnemyData.RunSpeed
+    
+    print("[Controller] ✅ Recovery complete, resuming chase")
+end
+
+
+
 
 
 -- ==========================================
@@ -225,10 +516,20 @@ end
 
 -- ==========================================
 -- ✨ CHASE LOOP: ไล่ player ตาม waypoints
+-- CHASE LOOP (Phase 2 - ปรับให้หยุดเมื่อ Dash)
+
 -- ==========================================
 function SimpleWalkController:ChaseLoop(targetPart)
     while self.IsChasing and self.Humanoid.Health > 0 do
         
+        -- ✨ หยุด Chase ถ้ากำลัง Dash หรือ Recover
+        if self.DashService:IsDashing() or self.DashService:IsRecovering() then
+            task.wait(0.1)
+            continue
+        end
+        
+
+
         if not self.CurrentTarget or not self.CurrentTarget.Parent then
             self:StopChasing()
             break
@@ -264,7 +565,7 @@ function SimpleWalkController:ChaseLoop(targetPart)
                 if tick() - startTime > 2 then
                     break
                 end
-            until moveFinished or not self.IsChasing
+            until moveFinished or not self.IsChasing or self.DashService:IsDashing()
             
             moveConnection:Disconnect()
         else
@@ -299,10 +600,16 @@ function SimpleWalkController:StopChasing()
         return  -- ถ้าไม่ได้ไล่อยู่ ไม่ต้องทำอะไร
     end
 
-        self.IsChasing = false
+    self.IsChasing = false
     self.CurrentTarget = nil
     self.OutOfRangeStartTime = nil
     
+    -- ✨ หยุด Dash ด้วย (ถ้ากำลัง Dash อยู่)
+    if self.DashService:IsDashing() then
+        self.DashService:StopDash()
+    end
+
+
     -- เรียก Services
     self.ChaseService:StopChase()
     self.DetectionService:StopDetection()
@@ -446,6 +753,11 @@ function SimpleWalkController:Reset()
     self.Humanoid.WalkSpeed = 0
     self.IsChasing = false
 
+
+       -- ✨ รีเซ็ต Dash
+    self.DashService:StopDash()
+
+
     self.CurrentTarget = nil --ใหม่
     self.OutOfRangeStartTime = nil -- ใหม่
 end
@@ -535,6 +847,15 @@ function SimpleWalkController:Destroy()
 	-- ในอนาคตถ้ามี Connections จะ Disconnect ที่นี่
     self.IsActive = false
     self.IsChasing = false
+
+
+       -- ✨ Disconnect Touch Connection
+    if self.TouchConnection then
+        self.TouchConnection:Disconnect()
+        self.TouchConnection = nil
+    end
+
+
     self.WalkService = nil
     self.ChaseService = nil
     self.DetectionService = nil

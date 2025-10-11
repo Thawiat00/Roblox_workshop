@@ -13,6 +13,12 @@ local AIState = {
     Stop = "Stop",
 
     Chase = "Chase",      -- ✨ ใหม่: วิ่งไล่ player
-    Jumping = "Jumping"   -- ✨ ใหม่: กระโดด
+    Jumping = "Jumping" ,  -- ✨ ใหม่: กระโดด
+
+
+    -- ✨ Phase 3: Spear Dash System
+    SpearDash = "SpearDash",  -- กำลังพุ่งใส่ player
+    Recover = "Recover"        -- พักหลังพุ่งเสร็จ
+
 }
 return AIState
