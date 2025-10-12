@@ -42,6 +42,10 @@ local DashHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.u
 
 
 
+-- ✨ Phase 4 Helper
+local ImpactHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.ImpactHelper)
+
+
 
 
 -- Roblox Services
@@ -74,6 +78,12 @@ function SimpleWalkController.new(model)
 	local repository = SimpleEnemyRepository.new()
 	self.EnemyData = repository:CreateSimpleEnemy(model)
 	
+
+    -- ✨ เพิ่ม RootPart ให้ EnemyData (สำหรับ Phase 4)
+    self.EnemyData.RootPart = self.RootPart
+
+
+
 	-- ==========================================
 	-- สร้าง Service (Business Logic)
 	-- ==========================================
@@ -111,7 +121,11 @@ function SimpleWalkController.new(model)
     self.RecoverDuration = SimpleAIConfig.RecoverDuration
 
 
-
+    -- ✨ Phase 4 Config
+    self.ImpactForceMagnitude = SimpleAIConfig.ImpactForceMagnitude
+    self.ImpactDuration = SimpleAIConfig.ImpactDuration
+    self.ImpactDamage = SimpleAIConfig.ImpactDamage
+    self.ImpactVisualEffect = SimpleAIConfig.ImpactVisualEffect
 
 
     -- State tracking
@@ -131,13 +145,94 @@ function SimpleWalkController.new(model)
 	
 
     -- ✨ Phase 3: Setup Touched Connection สำหรับ Knockback
-    self:SetupKnockbackDetection()
+   --self:SetupKnockbackDetection()
     
+    -- ✨ Phase 4: Setup Impact Detection
+    self:SetupImpactDetection()
+
+
 
 	-- เริ่มระบบ
 	self:Initialize()
 	
 	return self
+end
+
+-- ==========================================
+-- ✨ Phase 4: Setup Impact Detection
+-- ==========================================
+function SimpleWalkController:SetupImpactDetection()
+    -- เชื่อม Touched event กับ RootPart
+    self.TouchConnection = self.RootPart.Touched:Connect(function(hit)
+        -- ตรวจสอบว่ากำลัง Dash อยู่หรือไม่
+        if not self.DashService:IsDashing() then
+            return
+        end
+        
+        -- ตรวจสอบว่าเป็น Player หรือไม่
+        local isPlayer, player = ImpactHelper.IsPlayerCharacter(hit)
+        if not isPlayer then
+            return
+        end
+        
+        -- ดึง HumanoidRootPart ของ Player
+        local playerRoot = ImpactHelper.GetPlayerRootPart(hit.Parent)
+        if not playerRoot then
+            return
+        end
+        
+        -- ✨ เรียก OnDashHit พร้อม Impact Callback
+        self.DashService:OnDashHit(hit.Parent, function(target, player, playerRoot)
+            return self:HandlePlayerImpact(target, player, playerRoot)
+        end)
+    end)
+    
+    print("[Controller] ✅ Impact detection setup complete")
+end
+
+
+-- ==========================================
+-- ✨ Phase 4: จัดการการกระแทก Player
+-- ==========================================
+function SimpleWalkController:HandlePlayerImpact(target, player, playerRoot)
+    if not playerRoot or not self.RootPart then
+        warn("[Controller] Cannot handle impact: missing root parts")
+        return false
+    end
+    
+    -- คำนวณแรงกระแทก
+    local forceVector = ImpactHelper.CalculateImpactForce(
+        self.RootPart,
+        playerRoot,
+        self.ImpactForceMagnitude
+    )
+    
+    if not forceVector then
+        warn("[Controller] Failed to calculate impact force")
+        return false
+    end
+    
+    -- ✨ Apply VectorForce ให้ Player
+    local success = ImpactHelper.ApplyImpactForce(
+        playerRoot,
+        forceVector,
+        self.ImpactDuration,
+        SimpleAIConfig.ImpactGravityCompensation
+    )
+    
+    if success then
+        print("[Controller] 💥 Impact applied to:", player.Name)
+        
+        -- ✨ สร้าง Visual Effect (ถ้าเปิดใช้)
+        if self.ImpactVisualEffect then
+            ImpactHelper.CreateImpactEffect(playerRoot.Position)
+        end
+        
+        return true
+    else
+        warn("[Controller] Failed to apply impact force")
+        return false
+    end
 end
 
 
@@ -252,13 +347,18 @@ function SimpleWalkController:DashCheckLoop()
 
             -- STEP 4: ตรวจสอบว่าระยะอยู่ในช่วงหรือไม่
             local inRange = DashHelper.IsInDashRange(distance)
-            print("[Debug] Step 4 | InDashRange:", inRange, 
-                "(Min:", self.DashMinDistance, 
-                "Max:", self.DashMaxDistance, ")")
             if not inRange then
                 task.wait(self.DashCheckInterval)
                 continue
             end
+          --  local inRange = DashHelper.IsInDashRange(distance)
+          --  print("[Debug] Step 4 | InDashRange:", inRange, 
+          --      "(Min:", self.DashMinDistance, 
+          --      "Max:", self.DashMaxDistance, ")")
+          --  if not inRange then
+           --     task.wait(self.DashCheckInterval)
+           --     continue
+           -- end
 
             -- STEP 5: ตรวจสอบว่า ShouldDash ผ่านไหม
             local shouldDash = DashHelper.ShouldDash()
@@ -302,22 +402,17 @@ function SimpleWalkController:StartDashing()
     )
 
 
-        -- สุ่มระยะเวลาการพุ่ง
-    local dashDuration = DashHelper.GetRandomDashDuration()
+  --      -- สุ่มระยะเวลาการพุ่ง
+  --  local dashDuration = DashHelper.GetRandomDashDuration()
 
 
-        -- เรียก Service
-    local success = self.DashService:StartDash(
-        self.CurrentTarget,
-        dashDirection,
-        dashDuration
-    )
+   
 
     -- คำนวณทิศทางการพุ่ง
-    local dashDirection = DashHelper.CalculateDashDirection(
-        self.RootPart.Position,
-        self.CurrentTarget.Position
-    )
+  --  local dashDirection = DashHelper.CalculateDashDirection(
+  --      self.RootPart.Position,
+  --      self.CurrentTarget.Position
+  --  )
     
     -- สุ่มระยะเวลาการพุ่ง
     local dashDuration = DashHelper.GetRandomDashDuration()
@@ -348,9 +443,7 @@ end
 -- ==========================================
 function SimpleWalkController:DashLoop()
 
-    local hitPlayers = {} -- เก็บ Player ที่โดนแล้วเพื่อไม่กระเด็นซ้ำ
-
-
+ --   local hitPlayers = {} -- เก็บ Player ที่โดนแล้วเพื่อไม่กระเด็นซ้ำ
 
     while self.IsActive and self.Humanoid.Health > 0 and self.DashService:IsDashing() do
         
@@ -363,7 +456,7 @@ function SimpleWalkController:DashLoop()
         
         -- 🔹 เพิ่มบรรทัดนี้: ตรวจ collision กับ player
         --self.DashService:OnDashHit(self.CurrentTarget.Parent)
-             -- 🔹 ตรวจสอบเฉพาะ Player เท่านั้น
+        -- 🔹 ตรวจสอบเฉพาะ Player เท่านั้น
         local player = game.Players:GetPlayerFromCharacter(self.CurrentTarget.Parent)
         if not player then
             print("[Controller] ❌ Target is not a player, stopping dash")
@@ -371,16 +464,17 @@ function SimpleWalkController:DashLoop()
             break
         end
 
-            -- เคลื่อนที่ตรงไปยัง target (ไม่ใช้ pathfinding)
+
+        -- เคลื่อนที่ตรงไปยัง target (ไม่ใช้ pathfinding)
         self.Humanoid:MoveTo(self.CurrentTarget.Position)
 
 
             -- 🔹 ตรวจสอบการชนกับ Player (ไม่ชนซ้ำ)
-        if not hitPlayers[player] then
-            self.DashService:OnDashHit(self.CurrentTarget.Parent)
-            hitPlayers[player] = true -- mark ว่าโดนแล้ว
-            print("[Controller] 💥 Hit player:", player.Name)
-        end
+     --   if not hitPlayers[player] then
+    --        self.DashService:OnDashHit(self.CurrentTarget.Parent)
+     --       hitPlayers[player] = true -- mark ว่าโดนแล้ว
+     --       print("[Controller] 💥 Hit player:", player.Name)
+     --   end
 
 
         -- ตรวจสอบว่าครบเวลาพุ่งหรือยัง
@@ -609,6 +703,8 @@ function SimpleWalkController:StopChasing()
         self.DashService:StopDash()
     end
 
+    -- ✨ Phase 4: ล้างรายชื่อ Player ที่ชนแล้ว
+    self.DashService:ClearImpactRecords()
 
     -- เรียก Services
     self.ChaseService:StopChase()
@@ -702,6 +798,7 @@ function SimpleWalkController:StartWalking()
         error("[Controller] EnemyData is nil!")
     end
 
+
     self.WalkService:StartWalking()
     self.EnemyData:SetState(AIState.Walk)
     self.EnemyData.CurrentSpeed = self.EnemyData.WalkSpeed
@@ -709,6 +806,7 @@ function SimpleWalkController:StartWalking()
 
     local randomPosition = self:GetRandomPosition()
     self:MoveToPosition(randomPosition)
+
 end
 
 
@@ -757,6 +855,9 @@ function SimpleWalkController:Reset()
        -- ✨ รีเซ็ต Dash
     self.DashService:StopDash()
 
+
+     -- ✨ Phase 4: ล้างรายชื่อ Player ที่ชนแล้ว
+    self.DashService:ClearImpactRecords()
 
     self.CurrentTarget = nil --ใหม่
     self.OutOfRangeStartTime = nil -- ใหม่

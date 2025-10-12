@@ -45,6 +45,13 @@ function SimpleEnemyData.new(model, suppressWarning)
 
 
 
+    -- ✨ Phase 4: Impact tracking
+    self.LastImpactedPlayer = nil     -- Player ที่โดนชนล่าสุด
+    self.ImpactedPlayers = {}         -- เก็บรายชื่อ Player ที่โดนชนในรอบ Dash นี้
+    self.DashDamage = 10              -- ความเสียหายเมื่อชน
+
+
+
     return self
 end
 
@@ -118,12 +125,22 @@ function SimpleEnemyData:StartDash(direction, currentTime)
     self.DashStartTime = currentTime or tick()
     self.DashDirection = direction
     self.LastDashTime = currentTime or tick()
+
+
+        -- ✨ Phase 4: รีเซ็ตรายชื่อผู้เล่นที่โดนชนเมื่อเริ่ม Dash ใหม่
+    self.ImpactedPlayers = {}
+
 end
 
 function SimpleEnemyData:StopDash()
     self.IsDashing = false
     self.DashStartTime = nil
     self.DashDirection = nil
+
+
+    -- ✨ Phase 4: ล้างรายชื่อผู้เล่นที่โดนชนเมื่อหยุด Dash
+    self.ImpactedPlayers = {}
+
 end
 
 function SimpleEnemyData:SetDashDuration(duration)
@@ -131,8 +148,31 @@ function SimpleEnemyData:SetDashDuration(duration)
 end
 
 
+-- ==========================================
+-- ✨ Phase 4: Impact Setters
+-- ==========================================
+function SimpleEnemyData:RecordPlayerImpact(player)
+    if not player then return end
+    
+    self.LastImpactedPlayer = player
+    self.ImpactedPlayers[player] = true
+    
+    print("[SimpleEnemyData] Recorded impact on player:", player.Name)
+end
 
 
+function SimpleEnemyData:HasImpactedPlayer(player)
+    return self.ImpactedPlayers[player] == true
+end
+
+function SimpleEnemyData:ClearImpactRecords()
+    self.ImpactedPlayers = {}
+    self.LastImpactedPlayer = nil
+end
+
+function SimpleEnemyData:SetDashDamage(damage)
+    self.DashDamage = damage
+end
 
 -- ==========================================
 -- Getters: ตรวจสอบสถานะ (ใช้บ่อยใน Logic)

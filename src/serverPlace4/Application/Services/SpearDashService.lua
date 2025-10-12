@@ -93,53 +93,92 @@ end
 
 
 -- ==========================================
--- ✨ ตรวจการชนระหว่าง Dash (Knockback)
+-- ✨ Phase 4: ตรวจสอบว่าชน Player หรือยัง (เรียกจาก Controller)
 -- ==========================================
-function SpearDashService:OnDashHit(target)
-    if not target then return end
+function SpearDashService:OnDashHit(target , impactCallback)
+    if not target then return false end
 
     local humanoid = target:FindFirstChildOfClass("Humanoid")
     local rootPart = target:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart then return end
+    if not humanoid or not rootPart then return false end
 
     -- ✅ ให้กระเด็นเฉพาะ Player เท่านั้น
     local player = game.Players:GetPlayerFromCharacter(target)
     if not player then
-        print("[SpearDashService] Target is not a player, skipping knockback")
-        return
+        print("[SpearDashService] Target is not a player, skipping impact")
+        return false
     end
     
-    -- คำนวณทิศทางการกระเด็น
-    local enemyRoot = self.EnemyData.RootPart
-    if not enemyRoot or not enemyRoot:IsA("BasePart") then return end
-    
-    local direction = (rootPart.Position - enemyRoot.Position).Unit
-    local knockbackDirection = Vector3.new(direction.X, 0.5, direction.Z).Unit
-    
-    -- กำหนดแรงกระเด็น
-    local knockbackPower = 2000
-    local upwardForce = 500
-    
-    local knockbackVector = Vector3.new(
-        knockbackDirection.X * knockbackPower,
-        upwardForce,
-        knockbackDirection.Z * knockbackPower
-    )
-    
-    -- 🔹 ส่งไปให้ Client ทำการกระเด็นเอง (เพราะ Client มี Network Ownership)
-    local remoteEvent = game.ReplicatedStorage:FindFirstChild("ApplyKnockback")
-    if remoteEvent then
-        remoteEvent:FireClient(player, knockbackVector)
-        print("[SpearDashService] 💥 Sent knockback to player:", player.Name)
-    else
-        warn("[SpearDashService] ApplyKnockback RemoteEvent not found!")
+
+    -- ✨ Phase 4: ตรวจสอบว่าชน Player นี้แล้วหรือยัง (ป้องกันชนซ้ำ)
+    if self.EnemyData:HasImpactedPlayer(player) then
+        print("[SpearDashService] Already impacted this player, skipping")
+        return false
     end
-    
-    -- ทำ damage
-    if humanoid and humanoid.Health > 0 then
+
+
+     -- ✨ Phase 4: บันทึกว่าชน Player นี้แล้ว
+    self.EnemyData:RecordPlayerImpact(player)
+
+
+     -- ✨ Phase 4: เรียก Callback สำหรับจัดการ Impact
+    if impactCallback then
+        local success = impactCallback(target, player, rootPart)
+        if success then
+            print("[SpearDashService] ✅ Impact callback executed for:", player.Name)
+        end
+    end
+
+      
+    -- ทำ Damage
+    if humanoid.Health > 0 then
         local damage = self.EnemyData.DashDamage or 10
         humanoid:TakeDamage(damage)
+        print("[SpearDashService] 💔 Dealt", damage, "damage to:", player.Name)
     end
+    
+    return true
+
+
+    -- คำนวณทิศทางการกระเด็น
+    --local enemyRoot = self.EnemyData.RootPart
+    --if not enemyRoot or not enemyRoot:IsA("BasePart") then return end
+    
+    --local direction = (rootPart.Position - enemyRoot.Position).Unit
+    --local knockbackDirection = Vector3.new(direction.X, 0.5, direction.Z).Unit
+    
+    -- กำหนดแรงกระเด็น
+    --local knockbackPower = 2000
+   -- local upwardForce = 500
+    
+    --local knockbackVector = Vector3.new(
+    --    knockbackDirection.X * knockbackPower,
+    --    upwardForce,
+    --    knockbackDirection.Z * knockbackPower
+    --)
+    
+    -- 🔹 ส่งไปให้ Client ทำการกระเด็นเอง (เพราะ Client มี Network Ownership)
+    --local remoteEvent = game.ReplicatedStorage:FindFirstChild("ApplyKnockback")
+    --if remoteEvent then
+    --    remoteEvent:FireClient(player, knockbackVector)
+    --    print("[SpearDashService] 💥 Sent knockback to player:", player.Name)
+    --else
+    --    warn("[SpearDashService] ApplyKnockback RemoteEvent not found!")
+   -- end
+    
+    -- ทำ damage
+   -- if humanoid and humanoid.Health > 0 then
+    --    local damage = self.EnemyData.DashDamage or 10
+    --    humanoid:TakeDamage(damage)
+   -- end
+end
+
+
+-- ==========================================
+-- ✨ Phase 4: ล้างรายชื่อ Player ที่ชนแล้ว
+-- ==========================================
+function SpearDashService:ClearImpactRecords()
+    self.EnemyData:ClearImpactRecords()
 end
 
 

@@ -54,6 +54,18 @@ local SimpleAIConfig = {
     
 
 
+	-- ✨ Phase 4: Impact System Config
+    ImpactForceMagnitude = 1500,        -- แรงกระแทกพื้นฐาน
+    ImpactDuration = 0.2,               -- ระยะเวลาที่แรงส่งผล (วินาที)
+    ImpactMassMultiplier = 1.2,         -- คูณแรงด้วยน้ำหนัก Player
+    ImpactGravityCompensation = true,   -- ชดเชยแรงโน้มถ่วง
+    ImpactDamage = 15,                  -- ความเสียหายเมื่อชน
+    ImpactRecoveryTime = 0.5,           -- เวลา recovery หลังโดนชน
+    ImpactVisualEffect = true,          -- แสดงเอฟเฟกต์เมื่อชน
+    ImpactPreventDoubleHit = true,      -- ป้องกันชนซ้ำในรอบ Dash เดียวกัน
+
+
+
 	-- Pathfinding
 	AgentRadius = 2,
 	AgentHeight = 5,
