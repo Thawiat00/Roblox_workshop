@@ -100,6 +100,9 @@ function Phase4.TestImpact(activeControllers, config)
         return 0
     end
     
+
+
+    
     print("[AI Phase 4] 🤖 Test Enemy:", testEnemy.Model.Name)
     
     -- หา player ใกล้ที่สุด

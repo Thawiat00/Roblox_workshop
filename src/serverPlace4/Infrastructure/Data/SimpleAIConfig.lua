@@ -1,11 +1,11 @@
 local SimpleAIConfig = {
 		-- ความเร็ว
 	WalkSpeed = 8,
-	RunSpeed = 15,  -- ✨ ใหม่: ความเร็วตอนไล่
+	RunSpeed = 30,  -- ✨ ใหม่: ความเร็วตอนไล่
 
 
 	-- ✨ Phase 3: Spear Dash Speed
-    SpearSpeed = 30,                    -- ความเร็วตอนพุ่ง (เร็วกว่า RunSpeed 2 เท่า)
+    SpearSpeed = 60,                    -- ความเร็วตอนพุ่ง (เร็วกว่า RunSpeed 2 เท่า)
 	
 	-- ช่วงเวลา
 	WalkDuration = 5,
@@ -17,9 +17,11 @@ local SimpleAIConfig = {
 
 
 	-- ✨ ใหม่: Detection Config
-    DetectionRange = 20,      -- ระยะตรวจจับ player (studs)
+    DetectionRange = 60,      -- ระยะตรวจจับ player (studs)
     DetectionCheckInterval = 0.1, -- ตรวจทุก 0.1 วินาที
 	
+
+
 	    -- ✨ ใหม่: ระยะหยุดไล่
     ChaseStopRange = 40,           -- ถ้า player ห่างเกิน 40 studs = หยุดไล่
     ChaseStopDelay = 2,            -- รอ 2 วินาทีหลังหลุดระยะก่อนหยุด (ป้องกันกระพริบ)
@@ -75,6 +77,9 @@ local SimpleAIConfig = {
 	DefaultState = "Idle",
 	DefaultIsWalking = false,
 	DefaultCurrentSpeed = 0,
+
+
+    
 }
 
 return SimpleAIConfig

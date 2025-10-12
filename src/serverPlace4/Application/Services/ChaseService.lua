@@ -29,6 +29,9 @@ function ChaseService:StartChase(target)
     -- เปลี่ยนเป็นความเร็ววิ่ง
     self.EnemyData:SetSpeed(self.EnemyData.RunSpeed)
     
+
+    
+
     -- เปลี่ยน state เป็น Chase
     self.EnemyData:SetState(AIState.Chase)
     

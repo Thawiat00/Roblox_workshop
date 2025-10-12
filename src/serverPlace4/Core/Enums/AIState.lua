@@ -12,6 +12,9 @@ local AIState = {
     Walk = "Walk",
     Stop = "Stop",
 
+
+
+
     Chase = "Chase",      -- ✨ ใหม่: วิ่งไล่ player
     Jumping = "Jumping" ,  -- ✨ ใหม่: กระโดด
 
