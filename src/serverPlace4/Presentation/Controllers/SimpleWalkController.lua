@@ -53,6 +53,8 @@ local PathfindingService = game:GetService("PathfindingService")
 
 
 
+-- ✨ Phase 5: Sound Detection Service
+local SoundDetectionService = require(game.ServerScriptService.ServerLocal.Application.Services.SoundDetectionService)
 
 
 
@@ -98,6 +100,10 @@ function SimpleWalkController.new(model)
 
 
 
+    -- ✨ Phase 5: Sound Detection Service
+    self.SoundDetectionService = SoundDetectionService.new(self.EnemyData, self.EnemyData.SoundData)
+
+
 
 	-- ==========================================
 	-- โหลด Config
@@ -108,6 +114,21 @@ function SimpleWalkController.new(model)
 	self.MinWanderDistance = SimpleAIConfig.MinWanderDistance or 10
 	
 	self.DetectionRange = SimpleAIConfig.DetectionRange          -- ✨ ใหม่
+
+
+
+    -- ✨ Phase 5: Sound Config
+    self.SoundRadius = SimpleAIConfig.SoundRadius
+    self.SoundDuration = SimpleAIConfig.SoundDuration
+    self.SoundHearingRange = SimpleAIConfig.SoundHearingRange
+    self.SoundAlertDuration = SimpleAIConfig.SoundAlertDuration
+    self.SoundReachThreshold = SimpleAIConfig.SoundReachThreshold
+    self.SoundCheckInterval = SimpleAIConfig.SoundCheckInterval
+    self.SoundVisualEffect = SimpleAIConfig.SoundVisualEffect
+
+
+
+
 
         -- ✨ ใหม่: config สำหรับหยุดไล่
     self.ChaseStopRange = SimpleAIConfig.ChaseStopRange
@@ -131,6 +152,12 @@ function SimpleWalkController.new(model)
     -- State tracking
     self.OutOfRangeStartTime = nil
     self.OverlapParams = DetectionHelper.CreateOverlapParams(model)
+
+
+    -- ✨ Phase 5: Sound State
+    self.IsInvestigatingSound = false           -- กำลังตรวจสอบเสียงหรือไม่
+    self.SoundInvestigationTarget = nil         -- ตำแหน่งเสียงที่กำลังไปตรวจสอบ
+
 
 
 
@@ -237,6 +264,10 @@ end
 
 
 
+
+
+
+
 -- ==========================================
 -- ✨ Phase 3: Setup Knockback Detection
 -- ==========================================
@@ -307,9 +338,342 @@ function SimpleWalkController:Initialize()
     end)
 
 
+       -- ✨ Phase 5: Sound Investigation Loop
+    task.spawn(function()
+        self:SoundInvestigationLoop()
+    end)
+
 
 	print("[Controller] Initialized:", self.Model.Name)
 end
+
+
+-- ==========================================
+-- เพิ่มใน SimpleWalkController
+-- ==========================================
+
+-- ✨ Phase 5: Behavior Priority System
+-- ความสำคัญ (สูง → ต่ำ):
+-- 1. Dash/Recover
+-- 2. Chase (มี target ชัดเจน)
+-- 3. Sound Investigation (ได้ยินเสียง)
+-- 4. Detection (กำลังตรวจจับ)
+-- 5. Walk (เดินสำรวจปกติ)
+
+
+
+function SimpleWalkController:GetCurrentBehaviorPriority()
+    -- Priority 1: Dash/Recover (สูงสุด)
+    if self.DashService:IsDashing() or self.DashService:IsRecovering() then
+        return 1, "Dash/Recover"
+    end
+    
+    -- Priority 2: Chase (มี target)
+    if self.IsChasing and self.CurrentTarget then
+        return 2, "Chase"
+    end
+    
+    -- Priority 3: Sound Investigation
+    if self.IsInvestigatingSound then
+        return 3, "Sound Investigation"
+    end
+    
+    -- Priority 4: Detection (กำลังตรวจจับแต่ยังไม่ได้ไล่)
+    if self.DetectionService:IsDetecting() then
+        return 4, "Detection"
+    end
+    
+    -- Priority 5: Walk (ต่ำสุด)
+    return 5, "Walk"
+end
+
+
+-- ==========================================
+-- ✨ ตรวจสอบว่าสามารถเปลี่ยนพฤติกรรมได้หรือไม่
+-- ==========================================
+function SimpleWalkController:CanInterruptForBehavior(newPriority)
+    local currentPriority, currentBehavior = self:GetCurrentBehaviorPriority()
+    
+    -- ถ้า priority ใหม่สูงกว่า = ขัดจังหวะได้
+    if newPriority < currentPriority then
+        print("[Controller] Interrupting", currentBehavior, "for new behavior (priority:", newPriority, ")")
+        return true
+    end
+    
+    return false
+end
+
+
+
+-- ==========================================
+-- ✨ อัปเดต OnHearSound ให้ใช้ Priority
+-- ==========================================
+function SimpleWalkController:OnHearSound(soundPosition, soundSource)
+    -- ตรวจสอบว่าอยู่ในระยะได้ยินหรือไม่
+    if not self.SoundDetectionService:IsWithinHearingRange(self.RootPart.Position, soundPosition) then
+        return false
+    end
+    
+    -- ✅ ใช้ Priority System
+    local soundInvestigationPriority = 3
+    
+    if not self:CanInterruptForBehavior(soundInvestigationPriority) then
+        print("[Controller] Cannot interrupt current behavior for sound")
+        return false
+    end
+    
+    -- บันทึกเสียง
+    local success = self.SoundDetectionService:OnHearSound(soundPosition, soundSource)
+    
+    if success then
+        print("[Controller]", self.Model.Name, "heard sound from:", soundSource and soundSource.Name or "Unknown")
+    end
+    
+    return success
+end
+
+
+-- ==========================================
+-- ✨ Debug: แสดงสถานะปัจจุบัน
+-- ==========================================
+function SimpleWalkController:PrintCurrentStatus()
+    local priority, behavior = self:GetCurrentBehaviorPriority()
+    
+    print("===========================================")
+    print("[Controller Status]", self.Model.Name)
+    print("  • Current Behavior:", behavior)
+    print("  • Priority:", priority)
+    print("  • IsChasing:", self.IsChasing)
+    print("  • IsInvestigatingSound:", self.IsInvestigatingSound)
+    print("  • IsDashing:", self.DashService:IsDashing())
+    print("  • CurrentSpeed:", self.Humanoid.WalkSpeed)
+    
+    if self.CurrentTarget then
+        print("  • Chase Target:", self.CurrentTarget.Parent and self.CurrentTarget.Parent.Name or "Unknown")
+    end
+    
+    if self.SoundInvestigationTarget then
+        print("  • Sound Target:", self.SoundInvestigationTarget)
+    end
+    
+    print("===========================================")
+end
+
+
+
+-- ==========================================
+-- ✨ Phase 5: SOUND INVESTIGATION LOOP
+-- ตรวจสอบและตอบสนองต่อเสียงที่ได้ยิน
+-- ==========================================
+function SimpleWalkController:SoundInvestigationLoop()
+    while self.IsActive and self.Humanoid.Health > 0 do
+        
+        -- ตรวจสอบว่ามีเสียงที่ต้องตรวจสอบหรือไม่
+        if self.SoundDetectionService:IsAlerted() and not self.IsInvestigatingSound then
+            -- เริ่มตรวจสอบเสียง
+            self:StartSoundInvestigation()
+        end
+        
+        -- ถ้ากำลังตรวจสอบเสียงอยู่
+        if self.IsInvestigatingSound then
+            -- ตรวจสอบว่า Alert หมดเวลาหรือยัง
+            if self.SoundDetectionService:CheckAlertExpiry() then
+                print("[Controller] Alert expired during investigation")
+                self:StopSoundInvestigation()
+            
+            -- ตรวจสอบว่าควรหยุดตรวจสอบหรือไม่
+            elseif self.SoundDetectionService:ShouldStopInvestigating() then
+                print("[Controller] Investigation timeout or completed")
+                self:StopSoundInvestigation()
+            
+            -- ตรวจสอบว่าถึงตำแหน่งเสียงแล้วหรือยัง
+            elseif self.SoundInvestigationTarget then
+                local SoundHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.SoundHelper)
+                local distance = SoundHelper.GetDistance(
+                    self.RootPart.Position,
+                    self.SoundInvestigationTarget
+                )
+                
+                if distance <= self.SoundReachThreshold then
+                    print("[Controller] Reached sound location!")
+                    self.SoundDetectionService:ReachedSoundLocation()
+                    
+                    -- รอสักครู่แล้วหยุด
+                    task.wait(1.0)
+                    self:StopSoundInvestigation()
+                end
+            end
+        end
+        
+        task.wait(self.SoundCheckInterval or 0.2)
+    end
+end
+
+
+
+-- ==========================================
+-- ✨ Phase 5: เริ่มตรวจสอบเสียง
+-- ==========================================
+function SimpleWalkController:StartSoundInvestigation()
+    if self.IsInvestigatingSound then
+        return -- กำลังตรวจสอบอยู่แล้ว
+    end
+    
+    -- ดึงตำแหน่งเสียง
+    local soundPosition = self.SoundDetectionService:GetLastHeardPosition()
+    if not soundPosition then
+        warn("[Controller] Cannot investigate: no sound position")
+        return
+    end
+    
+    -- ตั้งค่าสถานะ
+    self.IsInvestigatingSound = true
+    self.SoundInvestigationTarget = soundPosition
+    
+    -- เรียก Service
+    self.SoundDetectionService:StartInvestigation()
+    
+    -- ✅ หยุด Chase ถ้ากำลังไล่อยู่
+    if self.IsChasing then
+        print("[Controller] Stopping chase to investigate sound")
+        self:StopChasing()
+    end
+    
+    -- ตั้งความเร็ว
+    self.Humanoid.WalkSpeed = self.EnemyData.RunSpeed
+    
+    print("[Controller] Started investigating sound at:", soundPosition)
+    
+    -- เริ่ม Investigation Movement Loop
+    task.spawn(function()
+        self:SoundInvestigationMovementLoop()
+    end)
+end
+
+
+
+-- ==========================================
+-- ✨ Phase 5: SOUND INVESTIGATION MOVEMENT LOOP
+-- เคลื่อนที่ไปยังตำแหน่งเสียง
+-- ==========================================
+function SimpleWalkController:SoundInvestigationMovementLoop()
+    local PathfindingHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.PathfindingHelper)
+    
+    while self.IsInvestigatingSound and self.IsActive and self.Humanoid.Health > 0 do
+        
+        -- ตรวจสอบว่ายังมีตำแหน่งเป้าหมายหรือไม่
+        if not self.SoundInvestigationTarget then
+            break
+        end
+        
+        -- คำนวณ path ไปยังตำแหน่งเสียง
+        local success, waypoints = PathfindingHelper.ComputePath(
+            self.Path,
+            self.RootPart.Position,
+            self.SoundInvestigationTarget
+        )
+        
+        if success and #waypoints > 1 then
+            local nextWaypoint = waypoints[2]
+            
+            -- ตรวจสอบว่าต้องกระโดดหรือไม่
+            if PathfindingHelper.ShouldJump(nextWaypoint) then
+                self.Humanoid.Jump = true
+                task.wait(0.3)
+            end
+            
+            -- เคลื่อนที่ไปยัง waypoint
+            self.Humanoid:MoveTo(nextWaypoint.Position)
+            
+            local moveFinished = false
+            local moveConnection = self.Humanoid.MoveToFinished:Connect(function()
+                moveFinished = true
+            end)
+            
+            local startTime = tick()
+            repeat 
+                task.wait(0.05)
+                if tick() - startTime > 2 then
+                    break
+                end
+            until moveFinished or not self.IsInvestigatingSound
+            
+            moveConnection:Disconnect()
+        else
+            -- ถ้า pathfinding ล้มเหลว เดินตรงไป
+            warn("[Controller] Path to sound failed, moving directly")
+            self.Humanoid:MoveTo(self.SoundInvestigationTarget)
+            task.wait(0.5)
+        end
+        
+        task.wait(0.1) -- อัปเดตบ่อยเพื่อความแม่นยำ
+    end
+    
+    print("[Controller] Sound investigation movement loop ended")
+end
+
+
+-- ==========================================
+-- ✨ Phase 5: หยุดตรวจสอบเสียง
+-- ==========================================
+function SimpleWalkController:StopSoundInvestigation()
+    if not self.IsInvestigatingSound then
+        return
+    end
+    
+    self.IsInvestigatingSound = false
+    self.SoundInvestigationTarget = nil
+    
+    -- เรียก Service
+    self.SoundDetectionService:CalmDown()
+    
+    -- หยุดเคลื่อนที่
+    self.Humanoid.WalkSpeed = 0
+    
+    print("[Controller] Stopped sound investigation")
+    
+    -- กลับสู่พฤติกรรมปกติ (Idle)
+    task.wait(0.5)
+    self.Humanoid.WalkSpeed = self.EnemyData.WalkSpeed
+end
+
+
+-- ==========================================
+-- ✨ Phase 5: Callback เมื่อได้ยินเสียง
+-- ==========================================
+function SimpleWalkController:OnHearSound(soundPosition, soundSource)
+    -- ตรวจสอบว่าอยู่ในระยะได้ยินหรือไม่
+    if not self.SoundDetectionService:IsWithinHearingRange(self.RootPart.Position, soundPosition) then
+        return false
+    end
+    
+    -- ✅ ถ้ากำลัง Chase อยู่ = ไม่สนใจเสียง (มี priority ต่ำกว่า)
+    if self.IsChasing then
+        print("[Controller] Ignoring sound, currently chasing")
+        return false
+    end
+    
+    -- ✅ ถ้ากำลัง Dash หรือ Recover = ไม่สนใจเสียง
+    if self.DashService:IsDashing() or self.DashService:IsRecovering() then
+        print("[Controller] Ignoring sound, currently dashing/recovering")
+        return false
+    end
+    
+    -- บันทึกเสียง
+    local success = self.SoundDetectionService:OnHearSound(soundPosition, soundSource)
+    
+    if success then
+        print("[Controller]", self.Model.Name, "heard sound from:", soundSource and soundSource.Name or "Unknown")
+        
+        -- เสียง Alert (optional)
+        -- เล่นเสียงแจ้งเตือน
+        -- PlayAlertSound(self.Model)
+    end
+    
+    return success
+end
+
+
 
 
 
@@ -852,12 +1216,22 @@ function SimpleWalkController:Reset()
     self.IsChasing = false
 
 
+
        -- ✨ รีเซ็ต Dash
     self.DashService:StopDash()
 
 
      -- ✨ Phase 4: ล้างรายชื่อ Player ที่ชนแล้ว
     self.DashService:ClearImpactRecords()
+
+
+    -- ✨ Phase 5: รีเซ็ต Sound Investigation
+    if self.IsInvestigatingSound then
+        self:StopSoundInvestigation()
+    end
+    self.SoundDetectionService:CalmDown()
+
+
 
     self.CurrentTarget = nil --ใหม่
     self.OutOfRangeStartTime = nil -- ใหม่
@@ -957,9 +1331,19 @@ function SimpleWalkController:Destroy()
     end
 
 
+     -- ✨ Phase 5: หยุด Sound Investigation
+    if self.IsInvestigatingSound then
+        self:StopSoundInvestigation()
+    end
+
+
     self.WalkService = nil
     self.ChaseService = nil
     self.DetectionService = nil
+
+    self.DashService = nil
+    self.SoundDetectionService = nil  -- ✨ Phase 5
+
     self.EnemyData = nil
     print("[Controller] Destroyed:", self.Model.Name)
 end

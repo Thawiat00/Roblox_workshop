@@ -8,6 +8,10 @@
 local AIState = require(game.ServerScriptService.ServerLocal.Core.Enums.AIState)
 local DetectionState = require(game.ServerScriptService.ServerLocal.Core.Enums.DetectionState)
 
+    -- ✨ Phase 5: Sound Detection Data
+local SoundData = require(game.ServerScriptService.ServerLocal.Core.Entities.SoundData)
+
+
 
 local SimpleEnemyData = {}
 SimpleEnemyData.__index = SimpleEnemyData
@@ -50,6 +54,9 @@ function SimpleEnemyData.new(model, suppressWarning)
     self.ImpactedPlayers = {}         -- เก็บรายชื่อ Player ที่โดนชนในรอบ Dash นี้
     self.DashDamage = 10              -- ความเสียหายเมื่อชน
 
+
+    -- ✨ Phase 5: Sound Detection Data
+    self.SoundData = SoundData.new()  -- เก็บข้อมูลการรับรู้เสียง
 
 
     return self
@@ -233,6 +240,24 @@ end
 function SimpleEnemyData:HasTarget()
     return self.CurrentTarget ~= nil
 end
+
+
+
+-- ==========================================
+-- ✨ Phase 5: Sound Detection Getters
+-- ==========================================
+function SimpleEnemyData:IsAlertedBySound()
+    return self.SoundData and self.SoundData:IsAlerted()
+end
+
+function SimpleEnemyData:IsInvestigatingSound()
+    return self.SoundData and self.SoundData:IsInvestigatingState()
+end
+
+function SimpleEnemyData:HasHeardSound()
+    return self.SoundData and self.SoundData:HasHeardSound()
+end
+
 
 
 return SimpleEnemyData

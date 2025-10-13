@@ -2,6 +2,8 @@
 -- ServerLocal/Bootstrap/InitializeAI.server.lua (Script)
 -- ==========================================
 -- Orchestrator - เปิดไฟล์และให้ทำงาน
+-- ✨ อัปเดตสำหรับ Phase 5
+
 -- ==========================================
 
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -18,7 +20,16 @@ local CONFIG = {
     EnablePhase2 = true,
     EnablePhase3 = true,
     EnablePhase4 = true,
+
+    EnablePhase5 = true,  -- ✨ เพิ่ม Phase 5
+
     AutoStart = true,
+
+    AutoStartPlayerSoundEmitters = true,  -- ✨ เปิด Sound Emitter อัตโนมัติ
+
+
+   --  SoundVisualEffect = false,  -- 👈 ปิด visual วงกลมเสียง ตั้งแต่เริ่ม ถ้าจะเปิด ก็ true
+
 }
 
 -- ==========================================
@@ -28,6 +39,9 @@ local Phase1 = CONFIG.EnablePhase1 and require(ServerScriptService.ServerLocal.B
 local Phase2 = CONFIG.EnablePhase2 and require(ServerScriptService.ServerLocal.Bootstrap.Phase2_Chase)
 local Phase3 = CONFIG.EnablePhase3 and require(ServerScriptService.ServerLocal.Bootstrap.Phase3_Dash)
 local Phase4 = CONFIG.EnablePhase4 and require(ServerScriptService.ServerLocal.Bootstrap.Phase4_Impact)
+
+local Phase5 = CONFIG.EnablePhase5 and require(ServerScriptService.ServerLocal.Bootstrap.Phase5_Sound)  -- ✨ Phase 5
+
 
 print("[AI System] ✅ Phase Modules Loaded")
 
@@ -48,6 +62,9 @@ local enemiesFolder = workspace:FindFirstChild("Enemies") or Instance.new("Folde
 enemiesFolder.Name = "Enemies"
 
 local activeControllers = {}
+
+local playerSoundEmitters = {}  -- ✨ เก็บ Sound Emitters
+
 
 -- ==========================================
 -- สร้าง Controllers
@@ -80,6 +97,8 @@ if #activeControllers > 0 then
     if Phase2 then Phase2.Initialize(repo, SimpleAIConfig) end
     if Phase3 then Phase3.Initialize(repo, SimpleAIConfig) end
     if Phase4 then Phase4.Initialize(repo, SimpleAIConfig) end
+    if Phase5 then Phase5.Initialize(repo, SimpleAIConfig) end  -- ✨ Phase 5
+
 end
 
 -- ==========================================
@@ -92,6 +111,14 @@ if CONFIG.AutoStart and #activeControllers > 0 then
     if Phase2 then Phase2.Start(activeControllers) end
     if Phase3 then Phase3.Start(activeControllers) end
     if Phase4 then Phase4.Start(activeControllers) end
+    if Phase5 then Phase5.Start(activeControllers) end  -- ✨ Phase 5
+
+
+        -- ✨ เริ่ม Player Sound Emitters
+    if CONFIG.AutoStartPlayerSoundEmitters and Phase5 then
+        playerSoundEmitters = Phase5.StartPlayerSoundEmitters(activeControllers)
+    end
+
 end
 
 -- ==========================================
@@ -101,10 +128,17 @@ _G.AISystem = {
     Config = CONFIG,
     SimpleAIConfig = SimpleAIConfig,
     Controllers = activeControllers,
+
+    PlayerSoundEmitters = playerSoundEmitters,  -- ✨ Phase 5
+
+
     Phase1 = Phase1,
     Phase2 = Phase2,
     Phase3 = Phase3,
     Phase4 = Phase4,
+
+    Phase5 = Phase5,  -- ✨ Phase 5
+
     
     -- General
     GetActiveCount = function() return #activeControllers end,
@@ -113,6 +147,9 @@ _G.AISystem = {
         if Phase2 then Phase2.ShowStats(activeControllers) end
         if Phase3 then Phase3.ShowStats(activeControllers) end
         if Phase4 then Phase4.ShowStats(activeControllers, SimpleAIConfig) end
+
+        if Phase5 then Phase5.ShowStats(activeControllers, SimpleAIConfig) end  -- ✨ Phase 5
+
     end,
     
     -- Phase 1
@@ -144,6 +181,30 @@ _G.AISystem = {
     ShowImpactStats = function() if Phase4 then Phase4.ShowStats(activeControllers, SimpleAIConfig) end end,
     ClearImpactRecords = function() return Phase4 and Phase4.ClearAllImpactRecords(activeControllers) or 0 end,
     ListImpactedPlayers = function() if Phase4 then Phase4.ListImpactedPlayers(activeControllers) end end,
+
+
+    -- ✨ Phase 5: Sound Detection
+    TestSoundEmission = function() return Phase5 and Phase5.TestSoundEmission(activeControllers, SimpleAIConfig) or 0 end,
+    ForceInvestigateNearestSound = function() return Phase5 and Phase5.ForceInvestigateNearestSound(activeControllers) or 0 end,
+    SetHearingRange = function(range) return Phase5 and Phase5.SetHearingRange(activeControllers, range) or 0 end,
+    SetAlertDuration = function(duration) return Phase5 and Phase5.SetAlertDuration(activeControllers, duration) or 0 end,
+    SetSoundRadius = function(radius) return Phase5 and Phase5.SetSoundRadius(SimpleAIConfig, radius) or false end,
+
+    ToggleSoundVisual = function(enabled) return Phase5 and Phase5.ToggleVisualEffect(SimpleAIConfig, enabled) or false end,
+   -- ToggleSoundVisual = function(enabled) return Phase5 and Phase5.ToggleVisualEffect(SimpleAIConfig, false) or false end,
+    StopAllInvestigations = function() return Phase5 and Phase5.StopAllInvestigations(activeControllers) or 0 end,
+    StartPlayerSoundEmitters = function() 
+        if Phase5 then 
+            playerSoundEmitters = Phase5.StartPlayerSoundEmitters(activeControllers)
+            return playerSoundEmitters
+        end
+        return {}
+    end,
+    ShowSoundStats = function() if Phase5 then Phase5.ShowStats(activeControllers, SimpleAIConfig) end end,
+    ListInvestigatingEnemies = function() if Phase5 then Phase5.ListInvestigatingEnemies(activeControllers) end end,
+    ShowSoundHelp = function() if Phase5 then Phase5.ShowHelp() end end,
+
+
 }
 
 -- ==========================================
@@ -171,5 +232,11 @@ end)
 print("===========================================")
 print("[AI System] ✅ System Ready!")
 print("[AI System] 🤖 Active Controllers:", #activeControllers)
+print("[AI System] 🔊 Player Sound Emitters:", #game.Players:GetPlayers())
+
 print("[AI System] 💡 Use: _G.AISystem.ShowAllStats()")
+
+print("[AI System] 💡 Use: _G.AISystem.ShowSoundHelp() for Phase 5 commands")
+
+
 print("===========================================")
