@@ -17,13 +17,13 @@ local SimpleAIConfig = {
 
 
 	-- ✨ ใหม่: Detection Config
-    DetectionRange = 40,      -- ระยะตรวจจับ player (studs)
+    DetectionRange = 80,      -- ระยะตรวจจับ player (studs)
     DetectionCheckInterval = 0.1, -- ตรวจทุก 0.1 วินาที
 	
 
 
 	    -- ✨ ใหม่: ระยะหยุดไล่
-    ChaseStopRange = 40,           -- ถ้า player ห่างเกิน 40 studs = หยุดไล่
+    ChaseStopRange = 80,           -- ถ้า player ห่างเกิน 40 studs = หยุดไล่
     ChaseStopDelay = 2,            -- รอ 2 วินาทีหลังหลุดระยะก่อนหยุด (ป้องกันกระพริบ)
 
 
@@ -69,7 +69,7 @@ local SimpleAIConfig = {
 
 
     -- ✨ Phase 5: Sound Detection Config
-    SoundRadius = 20,                   -- รัศมีเสียง (studs)
+    SoundRadius = 80,                   -- รัศมีเสียง (studs)
     SoundDuration = 0.5,                -- ระยะเวลาวงเสียง (วินาที)
     SoundHearingRange = 20,             -- ระยะที่ศัตรูได้ยิน (studs)
     SoundAlertDuration = 2.0,           -- ระยะเวลา Alert (วินาที)
