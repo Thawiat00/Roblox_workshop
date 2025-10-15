@@ -190,9 +190,14 @@ function SimpleEnemyData:IsIdle()
     return self.CurrentState == AIState.Idle
 end
 
+
+
 function SimpleEnemyData:IsWalking()
      return self.CurrentState == AIState.Walk
 end
+
+
+
 
 function SimpleEnemyData:IsStopped()
      return self.CurrentState == AIState.Stop

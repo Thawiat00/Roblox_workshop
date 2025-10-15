@@ -79,7 +79,7 @@ local SimpleAIConfig = {
 
 
    -- SoundVisualEffect = true,           -- แสดงวงเสียง
-     SoundVisualEffect = true,  -- 👈 ปิด debug circle
+     SoundVisualEffect = true,  -- 👈 เปิด debug circle
 
 
     SoundRequireLineOfSight = true,    -- ต้องมี line of sight หรือไม่

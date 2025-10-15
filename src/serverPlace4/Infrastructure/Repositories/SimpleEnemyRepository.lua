@@ -3,6 +3,7 @@ local SimpleAIConfig = require(game.ServerScriptService.ServerLocal.Infrastructu
 
 local HelpInfra = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.help_infra_phase_1)
 
+local WalkInfraHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.WalkInfraHelper)
 
 
 local SimpleEnemyRepository = {}
@@ -19,42 +20,53 @@ function SimpleEnemyRepository.new()
 end
 
 function SimpleEnemyRepository.GetInstance()
-	if not instance then
-		instance = SimpleEnemyRepository.new()
-	end
-	return instance
+	--if not instance then
+	--	instance = SimpleEnemyRepository.new()
+	--end
+	--return instance
+
+	return instance or SimpleEnemyRepository.new()
+
 end
 
 -- CREATE
 function SimpleEnemyRepository:CreateSimpleEnemy(model)
     assert(model, "[Repository] Cannot create enemy: model is nil")
 
-    local enemyData = SimpleEnemyData.new(model)
+ 
 
     -- ตั้งค่า properties ผ่าน helper
-    HelpInfra.SetEnemyProperty(enemyData, "CurrentSpeed", SimpleAIConfig.DefaultCurrentSpeed)
-    HelpInfra.SetEnemyProperty(enemyData, "WalkSpeed", SimpleAIConfig.WalkSpeed)
+   -- HelpInfra.SetEnemyProperty(enemyData, "CurrentSpeed", SimpleAIConfig.DefaultCurrentSpeed)
+  --  HelpInfra.SetEnemyProperty(enemyData, "WalkSpeed", SimpleAIConfig.WalkSpeed)
     
-    HelpInfra.SetEnemyProperty(enemyData, "RunSpeed", SimpleAIConfig.RunSpeed) -- ✨ ใหม่
+  --  HelpInfra.SetEnemyProperty(enemyData, "RunSpeed", SimpleAIConfig.RunSpeed) -- ✨ ใหม่
 
 
 
     -- ใช้ ForceBoolean สำหรับ IsWalking ให้เป็น boolean จริง
-    HelpInfra.ForceBoolean(enemyData, "IsWalking", SimpleAIConfig.DefaultIsWalking)
+  --  HelpInfra.ForceBoolean(enemyData, "IsWalking", SimpleAIConfig.DefaultIsWalking)
 
     -- ตั้งค่า State
-    if enemyData.SetState then
-        local validState = HelpInfra.ValidateState(enemyData.CurrentState)
-        enemyData:SetState(validState)
-    else
-        enemyData.CurrentState = HelpInfra.ValidateState(enemyData.CurrentState)
-    end
+  --  if enemyData.SetState then
+   --     local validState = HelpInfra.ValidateState(enemyData.CurrentState)
+   --     enemyData:SetState(validState)
+   -- else
+   --     enemyData.CurrentState = HelpInfra.ValidateState(enemyData.CurrentState)
+   -- end
 
     -- เพิ่ม fallback properties
-    enemyData.Model = model
-    enemyData.Name = model.Name or "Unknown"
+  --  enemyData.Model = model
+  --  enemyData.Name = model.Name or "Unknown"
 
-    self.Enemies[model] = enemyData
+  --  self.Enemies[model] = enemyData
+
+    local enemyData = SimpleEnemyData.new(model)
+    
+	-- ใช้ helper จาก infra ช่วยตั้งค่า
+	WalkInfraHelper.ApplyWalkSpeed(enemyData)
+	enemyData:SetState(WalkInfraHelper.ValidateState(enemyData.CurrentState))
+
+
     return enemyData
 end
 

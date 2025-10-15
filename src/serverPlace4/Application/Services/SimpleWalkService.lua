@@ -8,6 +8,17 @@
 
 local AIState = require(game.ServerScriptService.ServerLocal.Core.Enums.AIState)
 
+
+local SimpleEnemyData = require(game.ServerScriptService.ServerLocal.Core.Entities.SimpleEnemyData)
+
+
+local SimpleAIConfig = require(game.ServerScriptService.ServerLocal.Infrastructure.Data.SimpleAIConfig)
+
+
+local WalkInfraHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.WalkInfraHelper)
+
+
+
 local SimpleWalkService = {}
 SimpleWalkService.__index = SimpleWalkService
 
@@ -23,6 +34,9 @@ function SimpleWalkService.new(enemyData)
 	return self
 end
 
+
+
+
 -- ==========================================
 -- 1. หยุดเดิน (enemy_stop_walk)
 -- ใช้เมื่อ: ต้องการให้หยุดสนิท กลับสู่สถานะพักผ่อน
@@ -37,14 +51,44 @@ end
 -- ใช้เมื่อ: ต้องการให้เริ่มเดินสำรวจ
 -- ==========================================
 function SimpleWalkService:StartWalking()
+
+	if not self.EnemyData then
+        warn("[WalkService] EnemyData is nil")
+        return
+    end
+
+
 	-- ตั้งความเร็วตามที่กำหนด
-	self.EnemyData:SetSpeed(self.EnemyData.WalkSpeed)
+	--self.EnemyData:SetSpeed(self.EnemyData.WalkSpeed)
 	
 	-- เปลี่ยนเป็นสถานะ WALK (กำลังเดิน)
-	self.EnemyData:SetState(AIState.Walk)
+	--self.EnemyData:SetState(AIState.Walk)
+
+	-- ตั้งความเร็วจาก config
+	--self.EnemyData:SetSpeed(SimpleAIConfig.WalkSpeed)
+	--self.EnemyData:SetState(AIState.Walk)
+
+
+	-- ใช้ Helper ใน Layer 3 จัดการทั้งหมด
+	WalkInfraHelper.ApplyWalkSpeed(self.EnemyData)
+	WalkInfraHelper.ApplyWalkState(self.EnemyData)
+
 	
-	print("[WalkService] Enemy walking - State: WALK, Speed:", self.EnemyData.WalkSpeed)
+	
+	--print("[WalkService] Enemy walking - State: WALK, Speed:", self.EnemyData.WalkSpeed)
+
+
+	print(("[WalkService] Enemy walking - Speed: %d, Duration: %d")
+		:format(SimpleAIConfig.WalkSpeed, SimpleAIConfig.WalkDuration))
+
 end
+
+
+-- ตรวจสอบว่า Enemy กำลังเดิน
+function SimpleWalkService:IsWalking()
+    return self.EnemyData and self.EnemyData:IsWalking()
+end
+
 
 -- ==========================================
 -- 3. หยุดชั่วคราว (enemy_stopwalk)
