@@ -97,7 +97,43 @@ local SimpleAIConfig = {
 	DefaultCurrentSpeed = 0,
 
 
+
+    --phase 6 
+
+    -- ✨ phase 6  ค่าเริ่มต้นทั่วไป
+    --self.TargetPlayer = nil
+    --self.PatrolPoints = {}
+    --self.PatrolIndex = 1
+
+    TargetPlayer = nil,
+    PatrolPoints_ = {},
+    PatrolIndex = 1,
+
+    -- ✨ phase 6  ค่าระยะการตรวจจับและโจมตี
+    --self.AttackDistance = 5
+
+    AttackDistance = 5,
+
+    -- ✨ phase 6 Pathfinding Data (ข้อมูล Path ปัจจุบัน)
+    --self.Waypoints = {}
+    --self.WaypointIndex = 1
+    --self.PathUpdateInterval = 0.3
+    --self.PathTimer = 0
+
+    Waypoints = {},
+    WaypointIndex = 1,
+    PathUpdateInterval = 0.3,
+    PathTimer = 0,
     
+    -- ✨ สถานะอื่น ๆ
+    --self.IsDead = false
+    --self.LastAttackTime = 0
+    --self.AttackCooldown = 1.5
+
+    IsDead = false,
+    LastAttackTime = 0,
+    AttackCooldown = 1.5,
+
 }
 
 return SimpleAIConfig

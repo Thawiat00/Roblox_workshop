@@ -21,7 +21,13 @@ local AIState = {
 
     -- ✨ Phase 3: Spear Dash System
     SpearDash = "SpearDash",  -- กำลังพุ่งใส่ player
-    Recover = "Recover"        -- พักหลังพุ่งเสร็จ
+    Recover = "Recover",        -- พักหลังพุ่งเสร็จ
+
+    ChaseSmooth = "ChaseSmooth", -- ไล่ผู้เล่นแบบลื่นไหล (Phase 6)
+
+    Attack_ = "Attack",
+
+    Patrol = "Patrol",
 
 }
 return AIState

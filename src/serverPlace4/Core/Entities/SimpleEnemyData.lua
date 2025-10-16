@@ -11,6 +11,8 @@ local DetectionState = require(game.ServerScriptService.ServerLocal.Core.Enums.D
     -- ✨ Phase 5: Sound Detection Data
 local SoundData = require(game.ServerScriptService.ServerLocal.Core.Entities.SoundData)
 
+local SimpleAIConfig = require(game.ServerScriptService.ServerLocal.Infrastructure.Data.SimpleAIConfig)
+
 
 
 local SimpleEnemyData = {}
@@ -57,6 +59,24 @@ function SimpleEnemyData.new(model, suppressWarning)
 
     -- ✨ Phase 5: Sound Detection Data
     self.SoundData = SoundData.new()  -- เก็บข้อมูลการรับรู้เสียง
+
+
+    -- ✨ Phase 6: chase smooth + ref config
+
+    self.TargetPlayer = SimpleAIConfig.TargetPlayer
+    self.PatrolPoints = SimpleAIConfig.PatrolPoints_
+    self.PatrolIndex = SimpleAIConfig.PatrolIndex
+
+
+    self.AttackDistance = SimpleAIConfig.AttackDistance
+    self.WaypointIndex  = SimpleAIConfig.WaypointIndex
+    self.PathUpdateInterval = SimpleAIConfig.PathUpdateInterval
+    self.PathTimer  = SimpleAIConfig.PathTimer
+
+    self.IsDead = SimpleAIConfig.IsDead
+    self.LastAttackTime = SimpleAIConfig.LastAttackTime
+    self.AttackCooldown = SimpleAIConfig.AttackCooldown
+
 
 
     return self
@@ -261,6 +281,63 @@ end
 
 function SimpleEnemyData:HasHeardSound()
     return self.SoundData and self.SoundData:HasHeardSound()
+end
+
+
+-- =========  Phase 6            ==============
+-- ==========================================
+-- Setters
+-- ==========================================
+
+
+--function SimpleEnemyData:SetState(state)
+--    self.CurrentState = state
+--end
+
+
+function SimpleEnemyData:SetPatrolPoints(points)
+    self.PatrolPoints = points or {}
+    self.PatrolIndex = 1
+end
+
+
+
+function SimpleEnemyData:SetNextPatrolPoint()
+    if #self.PatrolPoints > 0 then
+        self.PatrolIndex = (self.PatrolIndex % #self.PatrolPoints) + 1
+    end
+end
+
+function SimpleEnemyData:SetWaypoints(waypoints)
+    self.Waypoints = waypoints or {}
+    self.WaypointIndex = 1
+end
+
+
+function SimpleEnemyData:NextWaypoint()
+    self.WaypointIndex += 1
+end
+
+
+-- ==========================================
+-- Getters
+-- ==========================================
+function SimpleEnemyData:IsPatrolling()
+    return self.CurrentState == AIState.Patrol
+end
+
+
+function SimpleEnemyData:IsChaseSmooth()
+    return self.CurrentState == AIState.ChaseSmooth
+end
+
+
+function SimpleEnemyData:IsAttacking()
+    return self.CurrentState ==  AIState.Attack_
+end
+
+function SimpleEnemyData:IsDead()
+    return self.IsDead == true
 end
 
 
