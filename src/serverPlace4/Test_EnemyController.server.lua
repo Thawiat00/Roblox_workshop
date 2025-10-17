@@ -13,7 +13,7 @@ local PATH_UPDATE_INTERVAL = 0.3  -- รีคำนวณ path ทุก 0.3 �
 -- 👀 โฟลเดอร์ศัตรู
 local enemyFolder = workspace:WaitForChild("puppet_enemy")
 
--- ฟังก์ชันสร้าง path
+-- ฟังก์ชันสร้าง path layer 2 and push to layer 3
 local function createPath(npc, targetPos)
     local path = PathfindingService:CreatePath({
         AgentRadius = 2,
@@ -30,6 +30,7 @@ local function createPath(npc, targetPos)
 end
 
 -- ฟังก์ชัน attack (ตัวอย่าง)
+-- ฟังก์ชันสร้าง layer 2 and push to layer 3
 local function attackPlayer(player)
     if player and player.Character and player.Character:FindFirstChild("Humanoid") then
         print("💀 Attack:", player.Name)
@@ -38,6 +39,7 @@ local function attackPlayer(player)
 end
 
 -- ฟังก์ชันหา player ใกล้ NPC
+-- ฟังก์ชันสร้าง layer 2 and push to layer 3
 local function findNearestPlayer(npc, distance)
     local nearest = nil
     local nearestDist = math.huge
@@ -53,7 +55,7 @@ local function findNearestPlayer(npc, distance)
     return nearest
 end
 
--- ฟังก์ชันสร้าง AI
+-- ฟังก์ชันสร้าง AI  for layer 4
 function NPCAIModule.createAI(npc, patrolPoints)
     local humanoid = npc:WaitForChild("Humanoid")
     local hrp = npc:WaitForChild("HumanoidRootPart")
@@ -116,12 +118,16 @@ function NPCAIModule.createAI(npc, patrolPoints)
     end)
 end
 
+
+
 -- 🟢 เริ่ม AI สำหรับทุก NPC ใน puppet_enemy
+-- ทำงาน บน layer 5 
 for _, npc in pairs(enemyFolder:GetChildren()) do
     NPCAIModule.createAI(npc, {}) -- ใส่ patrolPoints ถ้ามี
 end
 
 -- 🔔 ถ้ามี NPC ใหม่เพิ่มเข้ามา
+-- ทำงาน บน layer 5 
 enemyFolder.ChildAdded:Connect(function(child)
     task.wait(1)
     NPCAIModule.createAI(child, {})

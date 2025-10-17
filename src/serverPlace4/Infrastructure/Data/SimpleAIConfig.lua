@@ -1,3 +1,5 @@
+-- SimpleAIConfig.lua
+
 local SimpleAIConfig = {
 		-- ความเร็ว
 	WalkSpeed = 8,
@@ -89,7 +91,7 @@ local SimpleAIConfig = {
 	-- Pathfinding
 	AgentRadius = 2,
 	AgentHeight = 5,
-	AgentCanJump = true,
+	AgentCanJump = false,
 
 	-- Default properties สำหรับ enemyData
 	DefaultState = "Idle",
