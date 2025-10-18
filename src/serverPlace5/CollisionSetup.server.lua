@@ -1,9 +1,7 @@
 -- ============================================
--- 📄 CollisionSetup.lua (รันครั้งเดียวใน server)
+-- 📄 CollisionSetup.server.lua
 -- ============================================
 local PhysicsService = game:GetService("PhysicsService")
-
-local groups = {"Player", "EnemyCharge"}
 
 -- สร้าง Collision Group ถ้ายังไม่มี
 local function safeCreateGroup(name)
@@ -20,8 +18,6 @@ safeCreateGroup("Enemy")
 PhysicsService:CollisionGroupSetCollidable("Player", "EnemyCharge", false)
 PhysicsService:CollisionGroupSetCollidable("EnemyCharge", "Player", false)
 PhysicsService:CollisionGroupSetCollidable("EnemyCharge", "EnemyCharge", false)
-
--- optional: เพื่อความชัวร์
 PhysicsService:CollisionGroupSetCollidable("Enemy", "EnemyCharge", false)
 
 print("✅ Collision groups configured successfully.")
