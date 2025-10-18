@@ -2,12 +2,67 @@
 -- 📄 Skill_Charge.lua
 -- สร้างจุดข้างหลัง target แล้วให้ npc พุ่งไปยังจุดนั้น
 -- ========================================
-
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local SkillConfig = require(game.ServerScriptService.ServerLocal.Config.SkillConfig)
 
+
+
+
+local PhysicsService = game:GetService("PhysicsService")
+
+-- ===============================
+-- 1️⃣ Setup Collision Groups
+-- ===============================
+local function setupCollisionGroups()
+    -- สร้างกลุ่ม PlayerCharacters และ EnemyCharge ถ้ายังไม่มี
+    if not pcall(function() PhysicsService:GetCollisionGroupId("PlayerCharacters") end) then
+        PhysicsService:CreateCollisionGroup("PlayerCharacters")
+    end
+    if not pcall(function() PhysicsService:GetCollisionGroupId("EnemyCharge") end) then
+        PhysicsService:CreateCollisionGroup("EnemyCharge")
+    end
+
+    -- ปิดการชนระหว่าง Player ↔ EnemyCharge
+    PhysicsService:CollisionGroupSetCollidable("PlayerCharacters", "EnemyCharge", false)
+end
+
+setupCollisionGroups()
+
+
+
+-- ===============================
+-- 2️⃣ Assign Player CollisionGroup
+-- ===============================
+local function setPlayerCollision(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            PhysicsService:SetPartCollisionGroup(part, "PlayerCharacters")
+        end
+    end
+end
+
+local function onPlayerAdded(player)
+    player.CharacterAdded:Connect(setPlayerCollision)
+    if player.Character then
+        setPlayerCollision(player.Character)
+    end
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+    onPlayerAdded(player)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+
+
+-- ===============================
+-- 3️⃣ Skill_Charge Function
+-- ===============================
+
 local Skill_Charge = {}
+
 
 function Skill_Charge.Execute(npc, target)
     local config = SkillConfig.Skills.Charge
@@ -15,6 +70,7 @@ function Skill_Charge.Execute(npc, target)
         warn("❌ ไม่มี npc หรือ target")
         return false
     end
+
 
     -- 🧍‍♂️ หา HumanoidRootPart ของ npc
     local root = npc.root or (npc.model and npc.model:FindFirstChild("HumanoidRootPart"))
@@ -82,13 +138,103 @@ local pointPosition = targetRoot.Position + (direction * distanceBehind)
     print("🚀", npc.model.Name, "พุ่งไปยังจุด Charge ใช้เวลา", string.format("%.2f", duration), "วินาที")
 
     npc.IsCharging = true
+
+-- 🚫 ปิดการชนกับผู้เล่นระหว่างพุ่ง
+--for _, descendant in ipairs(npc.model:GetDescendants()) do
+--	if descendant:IsA("BasePart") then
+--		descendant.CanCollide = false
+--	end
+--end
+
+
+-- 🧠 ตั้ง CollisionGroup ให้ NPC ทั้งหมดเป็น EnemyCharge
+for _, part in ipairs(npc.model:GetDescendants()) do
+	if part:IsA("BasePart") then
+		PhysicsService:SetPartCollisionGroup(part, "EnemyCharge")
+	end
+end
+
+
     tween:Play()
-    tween.Completed:Wait()
+
+
+    -- 🌪️ ตรวจจับการชนระหว่างพุ่ง
+-- 🌪️ ตรวจจับการชนระหว่างพุ่ง
+local connection
+connection = root.Touched:Connect(function(hit)
+	local character = hit.Parent
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+
+	if humanoid and hrp and character ~= npc.model then
+		print("💥", npc.model.Name, "ชนกับ", character.Name)
+
+	--	local knockback = Instance.new("BodyVelocity")
+	--	knockback.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	--	local knockbackStrength = math.clamp(distance * 2, 30, 80)
+	--	knockback.Velocity = direction * knockbackStrength
+	--	knockback.Parent = hrp
+	--	game.Debris:AddItem(knockback, 0.2)
+
+    local knockback = Instance.new("BodyVelocity")
+    knockback.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    local knockbackStrength = math.clamp(distance * 2, 50, 100) -- เพิ่มแรงหน่อย
+    knockback.Velocity = direction * knockbackStrength + Vector3.new(60,30,0) -- เพิ่มแรงขึ้นบน
+    knockback.P = 1e4 -- เพิ่มคุณภาพฟิสิกส์
+    knockback.Parent = hrp
+    game.Debris:AddItem(knockback, 0.5) -- ให้แรงนานขึ้น
+
+		--humanoid:TakeDamage(config.Damage or 15)
+	end
+end)
+
+
+    tween.Completed:Wait(5)
+
+print("⏸ NPC หยุดนิ่ง 5 วินาที")
+
+--task.delay(5)
+--task.wait(5)             -- หยุดนิ่ง 5 วิ ก่อนทำงานต่อ
+
+-- ✅ รีเซ็ต CollisionGroup ก่อน
+for _, part in ipairs(npc.model:GetDescendants()) do
+	if part:IsA("BasePart") then
+		PhysicsService:SetPartCollisionGroup(part, "Default")
+	end
+end
+
+if connection then connection:Disconnect() end
+
+-- ✅ รอให้ NPC พ้นจากผู้เล่นก่อนค่อยเปิดการชนกลับ
+task.delay(0.5, function()
+	for _, descendant in ipairs(npc.model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.CanCollide = true
+		end
+	end
+end)
+
+
+
+
+
+-- 🚫 ยกเลิกการตรวจจับเมื่อพุ่งเสร็จ
+--if connection then
+--	connection:Disconnect()
+--end
+
     npc.IsCharging = false
 
+
+
+    
     print("✅", npc.model.Name, "ถึงจุด Charge แล้ว")
 
+
     return true
+
+
+    
 end
 
 return Skill_Charge
