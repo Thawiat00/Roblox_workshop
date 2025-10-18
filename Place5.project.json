@@ -1,0 +1,51 @@
+{
+  "name": "Place_5_Workshop_Gameplay_clean_code",
+  "servePort": 8004,
+  "servePlaceIds": [114113809158822],
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+
+      "Common": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+
+      "ServerShared": {
+        "$path": "src/server"
+      },
+
+      "ServerLocal": {
+        "$path": "src/ServerPlace5"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+
+        "ClientShared": {
+          "$path": "src/client"
+        },
+
+        "ClientLocal": {
+          "$path": "src/clientPlace5"
+        }
+      }
+    },
+
+    "HttpService": {
+      "$className": "HttpService",
+      "$properties": {
+        "HttpEnabled": true
+      }
+    }
+  }
+}

@@ -56,7 +56,7 @@ local function findNearestPlayer(npc, distance)
 end
 
 -- ฟังก์ชันสร้าง AI  for layer 4
-function NPCAIModule.createAI(npc, patrolPoints)
+function NPCAIModule.createAI_old(npc, patrolPoints)
     local humanoid = npc:WaitForChild("Humanoid")
     local hrp = npc:WaitForChild("HumanoidRootPart")
     if not npc.PrimaryPart then npc.PrimaryPart = hrp end
@@ -115,6 +115,67 @@ function NPCAIModule.createAI(npc, patrolPoints)
         if not targetPlayer and #patrolPoints > 0 and (hrp.Position - patrolPoints[patrolIndex]).Magnitude < 2 then
             patrolIndex = patrolIndex % #patrolPoints + 1
         end
+    end)
+end
+function NPCAIModule.createAI(npc)
+    local humanoid = npc:WaitForChild("Humanoid")
+    local hrp = npc:WaitForChild("HumanoidRootPart")
+    if not npc.PrimaryPart then npc.PrimaryPart = hrp end
+
+  --  local patrolIndex = 1
+    local targetPlayer = nil
+    local waypoints = {}
+    local wpIndex = 1
+    local pathTimer = 0
+
+    RunService.Heartbeat:Connect(function(deltaTime)
+        if not npc.Parent or humanoid.Health <= 0 then return end
+
+        -- หา player ใกล้ที่สุด
+        targetPlayer = findNearestPlayer(npc, DETECT_DISTANCE)
+        local targetPos = nil
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            targetPos = targetPlayer.Character.HumanoidRootPart.Position
+     --   elseif #patrolPoints > 0 then
+     --       targetPos = patrolPoints[patrolIndex]
+        else
+            return
+        end
+
+        pathTimer = pathTimer + deltaTime
+
+        -- รีคำนวณ path ทุก PATH_UPDATE_INTERVAL
+        if pathTimer >= PATH_UPDATE_INTERVAL then
+            pathTimer = 0
+            local newWaypoints = createPath(npc, targetPos)
+            if newWaypoints then
+                waypoints = newWaypoints
+                wpIndex = 1
+            else
+                -- fallback เดินตรงไป target
+                humanoid:MoveTo(targetPos)
+            end
+        end
+
+        -- เดินไป waypoint ปัจจุบัน
+        if waypoints[wpIndex] then
+            local wp = waypoints[wpIndex]
+            humanoid:MoveTo(wp.Position)
+            if wp.Action == Enum.PathWaypointAction.Jump then humanoid.Jump = true end
+            if (hrp.Position - wp.Position).Magnitude < 3 then
+                wpIndex = wpIndex + 1
+            end
+        end
+
+        -- ถ้าใกล้ player → โจมตี
+        if targetPlayer and (hrp.Position - targetPos).Magnitude <= ATTACK_DISTANCE then
+            attackPlayer(targetPlayer)
+        end
+
+        -- Patrol mode
+      --  if not targetPlayer and #patrolPoints > 0 and (hrp.Position - patrolPoints[patrolIndex]).Magnitude < 2 then
+      --      patrolIndex = patrolIndex % #patrolPoints + 1
+      --  end
     end)
 end
 

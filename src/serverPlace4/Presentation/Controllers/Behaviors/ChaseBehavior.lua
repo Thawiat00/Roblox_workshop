@@ -8,6 +8,10 @@ local PathfindingHelper = require(game.ServerScriptService.ServerLocal.Infrastru
 local DetectionHelper = require(game.ServerScriptService.ServerLocal.Infrastructure.utility.DetectionHelper)
 local SimpleAIConfig = require(game.ServerScriptService.ServerLocal.Infrastructure.Data.SimpleAIConfig)
 
+local PathfindingService = game:GetService("PathfindingService")
+
+local RunService = game:GetService("RunService")
+
 local ChaseBehavior = {}
 ChaseBehavior.__index = ChaseBehavior
 
@@ -124,10 +128,128 @@ function ChaseBehavior:StartChasing(targetPart)
     end)
 end
 
+
+
+local function createPath(npc, targetPos)
+    local path = PathfindingService:CreatePath({
+        AgentRadius = SimpleAIConfig.AgentRadius,
+        AgentHeight = SimpleAIConfig.AgentHeight,
+        AgentCanJump = SimpleAIConfig.AgentCanJump,
+        WaypointSpacing = SimpleAIConfig.WaypointSpacing
+    })
+    path:ComputeAsync(npc.PrimaryPart.Position, targetPos)
+    if path.Status == Enum.PathStatus.Success then
+        return path:GetWaypoints()
+    else
+        return nil
+    end
+end
+
+
+
+function ChaseBehavior:findNearestPlayer(npc, distance)
+    local nearest = nil
+    local nearestDist = math.huge
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (npc.PrimaryPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+            if dist < distance and dist < nearestDist then
+                nearest = player
+                nearestDist = dist
+            end
+        end
+    end
+    return nearest
+end
+
+
+
+function ChaseBehavior:ChaseLoop(npc)
+
+    while self.Controller.IsChasing and self.Humanoid.Health > 0 do
+    
+    local humanoid = npc:WaitForChild("Humanoid")
+    local hrp = npc:WaitForChild("HumanoidRootPart")
+    if not npc.PrimaryPart then npc.PrimaryPart = hrp end
+
+                -- หยุด Chase ถ้ากำลัง Dash/Recover
+        if self.Controller.DashService:IsDashing() or self.Controller.DashService:IsRecovering() then
+            task.wait(0.1)
+            continue
+        end
+        
+        if not self.Controller.CurrentTarget or not self.Controller.CurrentTarget.Parent then
+            self:StopChasing()
+            break
+        end
+
+
+  --  local patrolIndex = 1
+    local targetPlayer = nil
+    local waypoints = {}
+    local wpIndex = 1
+    local pathTimer = 0
+
+        RunService.Heartbeat:Connect(function(deltaTime)
+        if not npc.Parent or humanoid.Health <= 0 then return end
+
+        -- หา player ใกล้ที่สุด
+        local DETECT_DISTANCE = SimpleAIConfig.DetectionRange
+
+        targetPlayer = self.findNearestPlayer(npc, DETECT_DISTANCE)
+        local targetPos = nil
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            targetPos = targetPlayer.Character.HumanoidRootPart.Position
+     --   elseif #patrolPoints > 0 then
+     --       targetPos = patrolPoints[patrolIndex]
+        else
+            return
+        end
+
+        pathTimer = pathTimer + deltaTime
+
+        local PATH_UPDATE_INTERVAL = SimpleAIConfig.PathUpdateInterval
+        -- รีคำนวณ path ทุก PATH_UPDATE_INTERVAL
+        if pathTimer >= PATH_UPDATE_INTERVAL then
+            pathTimer = 0
+            local newWaypoints = createPath(npc, targetPos)
+            if newWaypoints then
+                waypoints = newWaypoints
+                wpIndex = 1
+            else
+                -- fallback เดินตรงไป target
+                humanoid:MoveTo(targetPos)
+            end
+        end
+
+        -- เดินไป waypoint ปัจจุบัน
+        if waypoints[wpIndex] then
+            local wp = waypoints[wpIndex]
+            humanoid:MoveTo(wp.Position)
+            if wp.Action == Enum.PathWaypointAction.Jump then humanoid.Jump = true end
+            if (hrp.Position - wp.Position).Magnitude < 3 then
+                wpIndex = wpIndex + 1
+            end
+        end
+
+        -- ถ้าใกล้ player → โจมตี
+       -- if targetPlayer and (hrp.Position - targetPos).Magnitude <= ATTACK_DISTANCE then
+       --     attackPlayer(targetPlayer)
+       -- end
+
+        -- Patrol mode
+      --  if not targetPlayer and #patrolPoints > 0 and (hrp.Position - patrolPoints[patrolIndex]).Magnitude < 2 then
+      --      patrolIndex = patrolIndex % #patrolPoints + 1
+      --  end
+        end)
+
+    end
+end
+
 -- ==========================================
 -- ✨ Chase Loop
 -- ==========================================
-function ChaseBehavior:ChaseLoop(targetPart)
+function ChaseBehavior:ChaseLoop_1(targetPart)
     while self.Controller.IsChasing and self.Humanoid.Health > 0 do
         
         -- หยุด Chase ถ้ากำลัง Dash/Recover
