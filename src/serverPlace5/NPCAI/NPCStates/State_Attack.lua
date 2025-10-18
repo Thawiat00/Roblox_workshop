@@ -2,6 +2,10 @@
 -- 📄 ServerScriptService/NPCAI/NPCStates/State_Attack.lua
 -- ========================================
 local Config = require(game.ServerScriptService.ServerLocal.Config.NPCConfig)
+
+local SkillConfig = require(game.ServerScriptService.ServerLocal.Config.SkillConfig)
+
+
 local EventBus = require(game.ServerScriptService.ServerLocal.Core.EventBus)
 
 return {
@@ -26,6 +30,12 @@ return {
         if npc.attackTimer >= Config.States.Attack.Cooldown then
             npc.attackTimer = 0
             
+
+            -- ✅ สุ่มว่าจะใช้สกิลหรือโจมตีปกติ
+            if math.random() <= SkillConfig.UseSkillChance then
+                return "UseSkill"  -- ใช้สกิลแทน!
+            end
+
             local targetHumanoid = target.Parent:FindFirstChild("Humanoid")
             if targetHumanoid then
                 targetHumanoid:TakeDamage(Config.States.Attack.Damage)

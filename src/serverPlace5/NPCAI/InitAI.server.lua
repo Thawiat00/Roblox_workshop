@@ -46,4 +46,20 @@ EventBus:On("PlayerDied", function(playerName)
     print("💀 Player Died:", playerName)
 end)
 
+-- ✅ ฟัง Event ใหม่
+EventBus:On("NPCUsedSkill", function(data)
+    print("✨", data.npc, "used", data.skill, "on", data.target)
+end)
+
+EventBus:On("PlayerHitBySkill", function(data)
+    print("💥", data.target, "hit by", data.skill, "for", data.damage, "damage")
+end)
+
+EventBus:On("PlayerStunned", function(data)
+    print("⚡", data.target, "stunned for", data.duration, "seconds")
+end)
+
+
+
+
 print("✅ NPC AI System Ready")

@@ -12,6 +12,9 @@ local State_Chase = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates
 local State_Attack = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_Attack)
 local State_Charge = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_Charge)
 
+local State_UseSkill = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_UseSkill)  -- ✅ เพิ่ม
+
+
 local NPCAIController = {}
 
 function NPCAIController.Create(model)
@@ -31,6 +34,14 @@ function NPCAIController.Create(model)
         canCharge = true,
         chargeStartTime = nil,
         
+
+        -- ✅ เพิ่มสำหรับสกิล
+        skillCooldowns = {},
+        isUsingSkill = false,
+        selectedSkill = nil,
+        skillUsed = false,
+        skillAnimationTime = nil,
+
         -- Update
         deltaTime = 0
     }
@@ -44,7 +55,10 @@ function NPCAIController.Create(model)
         Idle = State_Idle,
         Chase = State_Chase,
         Attack = State_Attack,
-        Charge = State_Charge
+        Charge = State_Charge,
+
+        UseSkill = State_UseSkill  -- ✅ เพิ่ม
+
     })
     
     stateMachine.data = npc
