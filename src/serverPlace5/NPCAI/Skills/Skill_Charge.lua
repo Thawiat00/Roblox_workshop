@@ -39,9 +39,16 @@ function Skill_Charge.Execute(npc, target)
     print("⚡", npc.model.Name, "ใช้สกิล Charge ใส่", target.Name)
 
     -- 🧭 คำนวณจุดข้างหลัง target
-    local direction = -targetRoot.CFrame.LookVector
-    local distanceBehind = config.DistanceBehind or 25
-    local pointPosition = targetRoot.Position + (direction * distanceBehind)
+   -- local direction = -targetRoot.CFrame.LookVector
+   -- local distanceBehind = config.DistanceBehind or 25
+   -- local pointPosition = targetRoot.Position + (direction * distanceBehind)
+
+   -- 🧭 คำนวณทิศทางจาก npc → target แล้วพุ่งทะลุหลังไปอีก
+local direction = (targetRoot.Position - root.Position).Unit
+local distanceBehind = config.DistanceBehind or 25
+local pointPosition = targetRoot.Position + (direction * distanceBehind)
+
+
 
     -- 💠 สร้างจุดที่มองเห็นได้ (ไว้ดู)
     local pointPart = Instance.new("Part")
