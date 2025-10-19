@@ -30,6 +30,34 @@ EventBus:On("NPCSpawned", function(npcName)
     print("🟢 NPC Spawned:", npcName)
 end)
 
+
+-- ========================================
+-- 🎯 รับ Event เมื่อ NPC โจมตีปกติ
+-- ========================================
+EventBus.On("OnNPCAttack", function(npc, target, damage)
+    print("⚔️", npc.model.Name, "attacked", target.Name, "for", damage, "damage")
+end)
+
+-- ========================================
+-- 💥 รับ Event เมื่อ NPC ใช้สกิล
+-- ========================================
+EventBus.On("OnNPCUseSkill", function(npc, target)
+    print("💥", npc.model.Name, "is using skill on", target.Name)
+    
+    -- ตัวอย่างการใช้งาน:
+    -- เล่นแอนิเมชัน
+    -- local animator = npc.humanoid:FindFirstChild("Animator")
+    -- if animator then
+    --     local track = animator:LoadAnimation(npc.skillAnimation)
+    --     track:Play()
+    -- end
+    
+    -- แสดง Effect พิเศษ
+    -- local skillEffect = game.ReplicatedStorage.Effects.SkillEffect:Clone()
+    -- skillEffect.Parent = npc.model
+end)
+
+
 EventBus:On("NPCAttacked", function(data)
     print("⚔️", data.npc, "attacked", data.target, "for", data.damage, "damage")
 end)

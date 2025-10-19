@@ -2,7 +2,7 @@
 -- 📄 Skill_Charge.lua
 -- สร้างจุดข้างหลัง target แล้วให้ npc พุ่งไปยังจุดนั้น
 -- ========================================
-local Players = game:GetService("Players")
+
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local SkillConfig = require(game.ServerScriptService.ServerLocal.Config.SkillConfig)
@@ -135,7 +135,7 @@ connection = root.Touched:Connect(function(hit)
     local knockback = Instance.new("BodyVelocity")
     knockback.MaxForce = Vector3.new(1e5, 1e5, 1e5)
     local knockbackStrength = math.clamp(distance * 2, 50, 100) -- เพิ่มแรงหน่อย
-    knockback.Velocity = direction * knockbackStrength + Vector3.new(60,30,0) -- เพิ่มแรงขึ้นบน
+    knockback.Velocity = direction * knockbackStrength + Vector3.new(0,30,60) -- เพิ่มแรงขึ้นบน
     knockback.P = 1e4 -- เพิ่มคุณภาพฟิสิกส์
     knockback.Parent = hrp
     game.Debris:AddItem(knockback, 0.5) -- ให้แรงนานขึ้น
