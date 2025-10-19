@@ -22,7 +22,7 @@ return {
         Attack = {
             Damage = 15,
             Range = 10,
-            Cooldown = 1.5,
+            Cooldown = 2.5,
             Range_Skill = 80
         },
         
