@@ -14,7 +14,11 @@ return {
             npc.normalAttackCount = 0
         end
         
-        print("⚔️", npc.model.Name, "→ Attack")
+        -- ⏱️ เพิ่มตัวจับเวลาว่าไม่ได้โจมตีนานเท่าไหร่แล้ว
+        npc.timeSinceLastHit = 0
+        npc.maxTimeWithoutHit = math.random(20, 30) / 10  -- สุ่ม 2-3 วินาที
+        
+        print("⚔️", npc.model.Name, "→ Attack (timeout:", npc.maxTimeWithoutHit, "s)")
     end,
     
     Update = function(npc, target, distance)
@@ -30,6 +34,15 @@ return {
         -- 🎯 กำหนดจำนวนการโจมตีขั้นต่ำก่อนใช้สกิล (2-3 ครั้ง)
         local minAttacksBeforeSkill = math.random(2, 3)
 
+        -- ⏱️ เพิ่มเวลาที่ไม่ได้โจมตี
+        npc.timeSinceLastHit = npc.timeSinceLastHit + npc.deltaTime
+        
+        -- ⚠️ ถ้าไม่ได้โจมตีนานเกินไป → กลับไปไล่แบบปกติ
+        if npc.timeSinceLastHit >= npc.maxTimeWithoutHit then
+            print("⏰ ไม่ได้โจมตีนานเกินไป (", math.floor(npc.timeSinceLastHit * 10) / 10, "s) → Chase")
+            return "Chase"
+        end
+
         -- 🟡 เช็คระยะห่าง - ถ้าไกลเกินระยะโจมตีปกติ → กลับไปไล่
         if distance > range then
             -- ถ้าห่างเกินระยะโจมตีปกติแต่ยังอยู่ในระยะสกิล → ลองใช้สกิล
@@ -38,6 +51,7 @@ return {
                 if shouldTrySkill and math.random() <= skillChance then
                     print("💥 อยู่ในระยะสกิล! (โจมตีปกติไปแล้ว", npc.normalAttackCount, "ครั้ง)")
                     npc.normalAttackCount = 0
+                    npc.timeSinceLastHit = 0  -- รีเซ็ตเวลา
                     
                     -- 🔔 ส่ง Event ก่อนใช้สกิล
                     EventBus.Emit("OnNPCUseSkill", npc, target)
@@ -60,6 +74,9 @@ return {
                 targetHumanoid:TakeDamage(attackCfg.Damage)
                 npc.normalAttackCount = npc.normalAttackCount + 1
                 
+                -- ✅ รีเซ็ตเวลาเมื่อโจมตีสำเร็จ
+                npc.timeSinceLastHit = 0
+                
                 -- 🔔 ส่ง Event เมื่อโจมตีปกติ
                 EventBus.Emit("OnNPCAttack", npc, target, attackCfg.Damage)
                 
@@ -71,6 +88,9 @@ return {
     end,
     
     Exit = function(npc)
+        -- เคลียร์ตัวจับเวลา
+        npc.timeSinceLastHit = 0
+        
         -- เมื่อออกจาก State Attack ให้รีเซ็ตตัวนับ (ถ้าต้องการ)
         -- npc.normalAttackCount = 0
     end
