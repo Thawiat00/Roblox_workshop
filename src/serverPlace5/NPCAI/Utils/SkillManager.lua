@@ -10,8 +10,8 @@ local SkillManager = {}
 -- โหลดสกิลทั้งหมด
 local Skills = {
 
-     -- Charge = require(game.ServerScriptService.ServerLocal.NPCAI.Skills.Skill_Charge),
-      Stun = require(game.ServerScriptService.ServerLocal.NPCAI.Skills.Skill_Stun),
+      Charge = require(game.ServerScriptService.ServerLocal.NPCAI.Skills.Skill_Charge),
+     -- Stun = require(game.ServerScriptService.ServerLocal.NPCAI.Skills.Skill_Stun),
 }
 
 -- สุ่มสกิลที่พร้อมใช้

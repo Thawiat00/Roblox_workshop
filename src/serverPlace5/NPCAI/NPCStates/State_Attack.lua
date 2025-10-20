@@ -6,6 +6,10 @@ local SkillConfig = require(game.ServerScriptService.ServerLocal.Config.SkillCon
 local EventBus = require(game.ServerScriptService.ServerLocal.Core.EventBus)
 local SkillManager = require(game.ServerScriptService.ServerLocal.NPCAI.Utils.SkillManager)
 
+
+local Players = game:GetService("Players")
+
+
 return {
     Enter = function(npc)
         npc.humanoid.WalkSpeed = 0
@@ -40,8 +44,9 @@ return {
         if distance > range then
             -- ถ้าห่างเกินระยะโจมตีปกติ แต่ยังอยู่ในระยะสกิล → ลองใช้สกิล
             if distance <= rangeSkill and npc.normalAttackCount >= minAttacksBeforeSkill and not npc.skillUsed then
-              --  local success = SkillManager.UseSkill(npc, "Charge", target)
-              local success = SkillManager.UseSkill(npc, "Stun", target)
+                local success = SkillManager.UseSkill(npc, "Charge", target)
+            --  local success = SkillManager.UseSkill(npc, "Stun", target)
+
                 if success then
                     npc.skillUsed = true
                     npc.skillAnimationTime = tick()
@@ -58,19 +63,35 @@ return {
         if npc.attackTimer >= attackCfg.Cooldown and npc.normalAttackCount < minAttacksBeforeSkill then
             npc.attackTimer = 0
             local targetHumanoid = target.Parent:FindFirstChild("Humanoid")
+          
+            --EventBus:Emit("ShakeCamera", targetHumanoid.target, 2.0, 0.8)
             if targetHumanoid then
                 targetHumanoid:TakeDamage(attackCfg.Damage)
                 npc.normalAttackCount = npc.normalAttackCount + 1
                 EventBus.Emit("OnNPCAttack", npc, target, attackCfg.Damage)
                 print("🗡️ โจมตีปกติครั้งที่", npc.normalAttackCount)
+
+            -- player.Character:FindFirstChild("HumanoidRootPart")
+            --EventBus:Emit("ShakeCamera", target, 2.0, 0.8)
+
+
+            
+            -- 🔹 แก้ไขตรงนี้: ส่ง Character แทน Humanoid
+            local targetCharacter = targetHumanoid.Parent
+            EventBus:Emit("ShakeCamera", targetCharacter, 0.5, 0.3)
+
             end
         end
 
         -- 🌀 ถ้าครบ 2 ครั้งแล้ว แต่ยังไม่ได้ใช้สกิล → ใช้ Charge
         -- 🌀 ถ้าครบ 2 ครั้งแล้ว แต่ยังไม่ได้ใช้สกิล → ใช้ Stun
         if npc.normalAttackCount >= minAttacksBeforeSkill and not npc.skillUsed then
-          --  local success = SkillManager.UseSkill(npc, "Charge", target)
-            local success = SkillManager.UseSkill(npc, "Stun", target)
+
+
+            local success = SkillManager.UseSkill(npc, "Charge", target)
+         --   local success = SkillManager.UseSkill(npc, "Stun", target)
+
+
             if success then
                 npc.skillUsed = true
                 npc.skillAnimationTime = tick()
@@ -82,8 +103,11 @@ return {
 
         -- รอ Animation สกิลเสร็จ
         if npc.skillUsed then
-          --  local skillData = SkillConfig.Skills["Charge"]
-          local skillData = SkillConfig.Skills["Stun"]
+
+            local skillData = SkillConfig.Skills["Charge"]
+        --  local skillData = SkillConfig.Skills["Stun"]
+
+
             if tick() - npc.skillAnimationTime >= skillData.Duration then
                 return "Chase"
             end

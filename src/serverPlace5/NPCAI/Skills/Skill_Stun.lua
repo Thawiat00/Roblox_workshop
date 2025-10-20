@@ -14,6 +14,10 @@ local EventBus = require(game.ServerScriptService.ServerLocal.Core.EventBus)
 local Skill_Stun = {}
 local frozenCharacters = {} -- เก็บสถานะ frozen
 
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CameraShake = require(ReplicatedStorage:WaitForChild("Common"):WaitForChild("CameraShake"))
+
 ------------------------------------------------------------
 -- 🔹 ผลักผู้เล่นเมื่อโดนคลื่น (ใช้ BodyVelocity)
 ------------------------------------------------------------
@@ -29,8 +33,11 @@ local function PushCharacter(character, fromPosition)
     local bodyVelocity = Instance.new("BodyVelocity")
    -- bodyVelocity.MaxForce = Vector3.new(100000, 1000, 100000) -- ไม่ผลักแกน Y
    -- bodyVelocity.Velocity = direction * knockbackForce
-    bodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000) -- ✅ เปลี่ยน Y เป็น 100000 เพื่อให้ผลักขึ้นได้
-    bodyVelocity.Velocity = (direction * knockbackForce) + Vector3.new(0, 30, 0) -- ✅ เพิ่มแรงขึ้นแกน Y
+    --bodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000) -- ✅ เปลี่ยน Y เป็น 100000 เพื่อให้ผลักขึ้นได้
+        bodyVelocity.MaxForce = Vector3.new(100000, 0, 100000) -- ✅ เปลี่ยน Y เป็น 100000 เพื่อให้ผลักขึ้นได้
+
+  --  bodyVelocity.Velocity = (direction * knockbackForce) + Vector3.new(0, 30, 0) -- ✅ เพิ่มแรงขึ้นแกน Y
+    bodyVelocity.Velocity = (direction * knockbackForce) + Vector3.new(30, 0, 0) -- ✅ เพิ่มแรงขึ้นแกน X
     bodyVelocity.Parent = root
     
 --⚙️ ปรับระดับการกระเด็น:
@@ -152,6 +159,15 @@ local function CreateExpandingRing(originPos, initialRadius, finalRadius, pieces
                     if (rootPos - info.part.Position).Magnitude <= 2 then
                         -- ✅ ผลักผู้เล่นออกไป 20-30 หน่วย
                         PushCharacter(player.Character, originPos)
+                        
+
+                        --CameraShake:Shake(1.5, 0.7)
+                       -- EventBus:Emit("ShakeCamera", player.Character, 1.5, 0.7)
+                        -- สั่นกล้องของเป้าหมาย
+                        --EventBus:Emit("ShakeCamera", 2.5, 0.8)
+                        EventBus:Emit("ShakeCamera", player.Character, 2, 1.0)
+
+
                         
                         -- ✅ แช่แข็งผู้เล่น
                         -- ปรับระยะเวลาสตัน ตรงนี้

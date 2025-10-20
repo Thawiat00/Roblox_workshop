@@ -8,6 +8,7 @@ local Debris = game:GetService("Debris")
 local SkillConfig = require(game.ServerScriptService.ServerLocal.Config.SkillConfig)
 
 
+local EventBus = require(game.ServerScriptService.ServerLocal.Core.EventBus)
 
 
 local PhysicsService = game:GetService("PhysicsService")
@@ -140,12 +141,26 @@ connection = root.Touched:Connect(function(hit)
     knockback.Parent = hrp
     game.Debris:AddItem(knockback, 0.5) -- ให้แรงนานขึ้น
 
+
+        --กล้องสั่น
+
+            -- 🔹 แก้ไขตรงนี้: ส่ง Character แทน Humanoid
+           -- local targetCharacter = targetHumanoid.Parent
+           -- EventBus:Emit("ShakeCamera", targetCharacter, 0.7, 0.5)
+
+
+            EventBus:Emit("ShakeCamera", character, 0.45, 1.0)
+
+
+            --EventBus:Emit("ShakeCamera", player.Character, 2, 1.0)
+
+
 		--humanoid:TakeDamage(config.Damage or 15)
 	end
 end)
 
 
-    tween.Completed:Wait(5)
+    tween.Completed:Wait(6)
 
 print("⏸ NPC หยุดนิ่ง 5 วินาที")
 

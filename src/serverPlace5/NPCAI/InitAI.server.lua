@@ -4,6 +4,12 @@
 local NPCAIController = require(game.ServerScriptService.ServerLocal.NPCAI.NPCAIController)
 local EventBus = require(game.ServerScriptService.ServerLocal.Core.EventBus)
 
+--local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+--local EventBus = require(ReplicatedStorage:WaitForChild("Core"):WaitForChild("EventBus"))
+
+
+
 local enemyFolder = workspace:WaitForChild("puppet_enemy")
 
 print("🤖 Initializing NPC AI System...")
@@ -94,6 +100,11 @@ EventBus:On("PlayerStunned", function(data)
     print("⚡", data.target, "stunned for", data.duration, "seconds")
 end)
 
+-- 🧩 รองรับการสั่นจาก EventBus (ใช้ตอน debug หรือสั่งใน client)
+--EventBus:On("ShakeCamera", function(intensity, duration)
+--	print("[CameraShakeClient] 🔔 EventBus Trigger Received intensity : ",intensity,"duration",duration)
+	--ShakeCamera(intensity, duration)
+--end)
 
 
 
