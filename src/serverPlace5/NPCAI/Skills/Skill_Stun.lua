@@ -50,14 +50,14 @@ local function FreezeCharacter(character, duration)
 
     humanoid.WalkSpeed = 0
     humanoid.JumpPower = 0
-    humanoid.PlatformStand = true
+   -- humanoid.PlatformStand = true
 
     frozenCharacters[character] = {
         humanoid = humanoid,
         remaining = duration,
         originalSpeed = originalSpeed,
         originalJump = originalJump,
-        originalPlatformStand = originalPlatformStand
+     --   originalPlatformStand = originalPlatformStand
     }
 
     EventBus:Emit("PlayerStunned", {
@@ -77,7 +77,7 @@ local function FreezeCharacter(character, duration)
         if humanoid and frozenCharacters[character] then
             humanoid.WalkSpeed = frozenCharacters[character].originalSpeed
             humanoid.JumpPower = frozenCharacters[character].originalJump
-            humanoid.PlatformStand = frozenCharacters[character].originalPlatformStand
+         --   humanoid.PlatformStand = frozenCharacters[character].originalPlatformStand
             frozenCharacters[character] = nil
             print("🔥", character.Name, "movement restored")
         end
