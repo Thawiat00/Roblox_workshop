@@ -62,6 +62,13 @@ EventBus:On("NPCAttacked", function(data)
     print("⚔️", data.npc, "attacked", data.target, "for", data.damage, "damage")
 end)
 
+-- 🔹 ฟังเหตุการณ์เมื่อผู้เล่นถูกสตัน
+EventBus:On("PlayerStunned", function(data)
+	print("⚡ Player stunned event received!")
+	print("🧊 Target:", data.target)
+	print("⏱ Duration:", data.duration, "seconds")
+end)
+
 EventBus:On("NPCDied", function(npcName)
     print("💀 NPC Died:", npcName)
 end)
