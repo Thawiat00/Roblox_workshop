@@ -15,20 +15,41 @@ local Skill_Stun = {}
 local frozenCharacters = {} -- เก็บสถานะ frozen
 
 ------------------------------------------------------------
--- 🔹 ผลักผู้เล่นเมื่อโดนคลื่น
+-- 🔹 ผลักผู้เล่นเมื่อโดนคลื่น (ใช้ BodyVelocity)
 ------------------------------------------------------------
-local function PushCharacter(character, fromCFrame)
+local function PushCharacter(character, fromPosition)
     local root = character:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local PUSH_FORCE = 100
-    local UP_FORCE = 20
-    local mass = root.AssemblyMass
-    local direction = (root.Position - fromCFrame.Position).Unit
-    local impulse = (direction * PUSH_FORCE * mass) + Vector3.new(0, UP_FORCE * mass, 0)
+    -- คำนวณทิศทางผลัก (จากศูนย์กลางออกไป)
+    local direction = (root.Position - fromPosition).Unit
+    local knockbackForce = Random.new():NextNumber(60, 80) -- ระยะผลัก 20-30 หน่วย
+    
+    -- สร้าง BodyVelocity เพื่อผลัก
+    local bodyVelocity = Instance.new("BodyVelocity")
+   -- bodyVelocity.MaxForce = Vector3.new(100000, 1000, 100000) -- ไม่ผลักแกน Y
+   -- bodyVelocity.Velocity = direction * knockbackForce
+    bodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000) -- ✅ เปลี่ยน Y เป็น 100000 เพื่อให้ผลักขึ้นได้
+    bodyVelocity.Velocity = (direction * knockbackForce) + Vector3.new(0, 30, 0) -- ✅ เพิ่มแรงขึ้นแกน Y
+    bodyVelocity.Parent = root
+    
+--⚙️ ปรับระดับการกระเด็น:
 
-    root:ApplyImpulse(impulse)
-    print("💨 Pushed:", character.Name)
+--Vector3.new(0, 20, 0) = กระเด็นขึ้นเล็กน้อย
+--Vector3.new(0, 30, 0) = กระเด็นขึ้นปานกลาง ⭐ แนะนำ
+--Vector3.new(0, 50, 0) = กระเด็นขึ้นสูงมาก
+--Vector3.new(0, 80, 0) = บินขึ้นฟ้า 🚀
+
+--ลองปรับค่าตามความต้องการได้เลยครับ! 🎊
+
+    -- ลบ BodyVelocity หลังจาก 0.3 วินาที
+    task.delay(0.3, function()
+        if bodyVelocity and bodyVelocity.Parent then
+            bodyVelocity:Destroy()
+        end
+    end)
+    
+    print("💨 Pushed:", character.Name, "with force", knockbackForce)
 end
 
 ------------------------------------------------------------
@@ -46,18 +67,15 @@ local function FreezeCharacter(character, duration)
 
     local originalSpeed = humanoid.WalkSpeed
     local originalJump = humanoid.JumpPower
-    local originalPlatformStand = humanoid.PlatformStand
 
     humanoid.WalkSpeed = 0
     humanoid.JumpPower = 0
-   -- humanoid.PlatformStand = true
 
     frozenCharacters[character] = {
         humanoid = humanoid,
         remaining = duration,
         originalSpeed = originalSpeed,
         originalJump = originalJump,
-     --   originalPlatformStand = originalPlatformStand
     }
 
     EventBus:Emit("PlayerStunned", {
@@ -77,7 +95,6 @@ local function FreezeCharacter(character, duration)
         if humanoid and frozenCharacters[character] then
             humanoid.WalkSpeed = frozenCharacters[character].originalSpeed
             humanoid.JumpPower = frozenCharacters[character].originalJump
-         --   humanoid.PlatformStand = frozenCharacters[character].originalPlatformStand
             frozenCharacters[character] = nil
             print("🔥", character.Name, "movement restored")
         end
@@ -133,8 +150,13 @@ local function CreateExpandingRing(originPos, initialRadius, finalRadius, pieces
                 if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and not hitPlayers[player] then
                     local rootPos = player.Character.HumanoidRootPart.Position
                     if (rootPos - info.part.Position).Magnitude <= 2 then
-                        PushCharacter(player.Character, info.part.CFrame)
+                        -- ✅ ผลักผู้เล่นออกไป 20-30 หน่วย
+                        PushCharacter(player.Character, originPos)
+                        
+                        -- ✅ แช่แข็งผู้เล่น
                         FreezeCharacter(player.Character, 2)
+                        
+                        -- ✅ ทำครั้งเดียวต่อผู้เล่น
                         hitPlayers[player] = true
                     end
                 end
@@ -164,18 +186,8 @@ function Skill_Stun.Execute(npc, target)
 
     print("⚡", npc.model.Name, "used Stun!")
 
-    -- 1️⃣ สร้างเอฟเฟกต์คลื่น
+    -- สร้างเอฟเฟกต์คลื่นที่จะผลักและแช่แข็งผู้เล่นอัตโนมัติ
     CreateExpandingRing(npcRoot.Position, 1, 30, 30, 5)
-
-    -- 2️⃣ ตรวจว่าผู้เล่นอยู่ในระยะตรงหน้า
-    local targetCharacter = target.Parent
-    if targetCharacter then
-        local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
-        if targetHumanoid then
-            PushCharacter(targetCharacter, npcRoot.CFrame)
-            FreezeCharacter(targetCharacter, config.StunDuration)
-        end
-    end
 
     return true
 end

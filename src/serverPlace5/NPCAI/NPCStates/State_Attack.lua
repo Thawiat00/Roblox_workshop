@@ -17,6 +17,9 @@ return {
         print("⚔️", npc.model.Name, "→ เข้าสู่โหมดโจมตี")
     end,
 
+
+
+    
     Update = function(npc, target, distance)
         if not target then 
             return "Chase" 
