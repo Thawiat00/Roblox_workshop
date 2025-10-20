@@ -25,7 +25,7 @@ return {
         Stun = {
             Name = "Stun",
             Range = 10,
-            StunDuration = 5,
+            StunDuration = 7,
             Cooldown = 10,
             Chance = 0.15  -- 15% โอกาส
         },

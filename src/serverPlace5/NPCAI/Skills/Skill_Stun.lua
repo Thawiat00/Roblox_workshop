@@ -154,7 +154,8 @@ local function CreateExpandingRing(originPos, initialRadius, finalRadius, pieces
                         PushCharacter(player.Character, originPos)
                         
                         -- ✅ แช่แข็งผู้เล่น
-                        FreezeCharacter(player.Character, 2)
+                        -- ปรับระยะเวลาสตัน ตรงนี้
+                        FreezeCharacter(player.Character, SkillConfig.Skills.Stun.StunDuration)
                         
                         -- ✅ ทำครั้งเดียวต่อผู้เล่น
                         hitPlayers[player] = true
