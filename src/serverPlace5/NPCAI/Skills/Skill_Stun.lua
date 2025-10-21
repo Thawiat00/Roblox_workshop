@@ -90,7 +90,9 @@ local function FreezeCharacter(character, duration)
         duration = duration
     })
 
+
     print("❄️", character.Name, "frozen for", duration, "sec")
+
 
     task.spawn(function()
         local elapsed = 0
@@ -180,6 +182,8 @@ local function CreateExpandingRing(originPos, initialRadius, finalRadius, pieces
             end
         end)
 
+
+
         tween:Play()
         tween.Completed:Connect(function()
             info.part:Destroy()
@@ -187,6 +191,10 @@ local function CreateExpandingRing(originPos, initialRadius, finalRadius, pieces
                 connection:Disconnect()
             end
         end)
+
+
+
+        
     end
 end
 

@@ -126,6 +126,8 @@ connection = root.Touched:Connect(function(hit)
 	if humanoid and hrp and character ~= npc.model then
 		print("💥", npc.model.Name, "ชนกับ", character.Name)
 
+
+        
 	--	local knockback = Instance.new("BodyVelocity")
 	--	knockback.MaxForce = Vector3.new(1e5, 1e5, 1e5)
 	--	local knockbackStrength = math.clamp(distance * 2, 30, 80)
@@ -161,6 +163,8 @@ end)
 
 
     tween.Completed:Wait(6)
+
+
 
 print("⏸ NPC หยุดนิ่ง 5 วินาที")
 

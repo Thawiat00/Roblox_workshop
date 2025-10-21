@@ -31,6 +31,9 @@ enemyFolder.ChildAdded:Connect(function(child)
     end
 end)
 
+
+
+
 -- ฟัง Events
 EventBus:On("NPCSpawned", function(npcName)
     print("🟢 NPC Spawned:", npcName)
@@ -67,6 +70,10 @@ end)
 EventBus:On("NPCAttacked", function(data)
     print("⚔️", data.npc, "attacked", data.target, "for", data.damage, "damage")
 end)
+
+
+
+
 
 -- 🔹 ฟังเหตุการณ์เมื่อผู้เล่นถูกสตัน
 EventBus:On("PlayerStunned", function(data)
