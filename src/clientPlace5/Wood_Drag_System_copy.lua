@@ -15,10 +15,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- 🔗 RemoteEvent สำหรับแจ้ง Server
 local RE_OnWoodThrown = ReplicatedStorage:WaitForChild("Common"):WaitForChild("RE_OnWoodThrown")
 
-
-local TweenService = game:GetService("TweenService")
-
-
 --local Frame_ui_stamina = ReplicatedStorage:WaitForChild
 
 
@@ -33,69 +29,28 @@ local currentDragDetector = nil -- DragDetector ที่กำลังใช�
 
 
 
-local player = game.Players.LocalPlayer
+-- ============================
+-- 💪 ระบบ Stamina
+-- ============================
 local playerGui = player:WaitForChild("PlayerGui")
-
--- 🎯 เข้าถึง UI ตามโครงสร้างที่อยู่ใน StarterGui
-local screenGui = playerGui:WaitForChild("ScreenGui")
-
---local staminaText = staminaFrame:WaitForChild("Stamina_Text")
-
-local staminaFrame = screenGui:WaitForChild("Stamina_Frame")
-
-
-local stamina_Bar = staminaFrame:WaitForChild("Bar")
-
-local Bg_label_Stamina = staminaFrame:WaitForChild("BG")
-
+local staminaFrame = playerGui:WaitForChild("ScreenGui"):WaitForChild("Frame")
 local staminaLabel = staminaFrame:WaitForChild("Stamina")
-
-local staminaText = staminaLabel:WaitForChild("Stamina_text")
+local staminaText = staminaFrame:WaitForChild("Stamina_Text")
 
 ----------------------------------
 
 local MAX_STAMINA = 100
 local currentStamina = MAX_STAMINA
 local STAMINA_USE = 20           -- ใช้เมื่อขว้าง
-
 local STAMINA_RECOVER_RATE = 5   -- ฟื้นคืนต่อวินาที
 local STAMINA_TICK = 0.2         -- ทุก 0.2 วิจะฟื้น
 
 
 
 local function updateStaminaUI()
---	staminaLabel.Text = string.format("🌀 %d", currentStamina)
---	staminaText.Text = tostring(currentStamina)
-
-		-- 💡 ปรับขนาด bar ตามสัดส่วน stamina
-	--local ratio = currentStamina / MAX_STAMINA
-	--stamina_Bar.Size = UDim2.new(ratio, 0, 1, 0)
-
-	local ratio = currentStamina / MAX_STAMINA
-	local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tween = TweenService:Create(stamina_Bar, tweenInfo, { Size = UDim2.new(ratio, 0, 1, 0) })
-	tween:Play()
-
---	if(tween.)
+	staminaLabel.Text = string.format("🌀 %d", currentStamina)
+	staminaText.Text = tostring(currentStamina)
 end
-
-local function stamina_transparent()
-
-	Bg_label_Stamina.BackgroundTransparency = 1
-	stamina_Bar.BackgroundTransparency = 1
-	--stamina_Bar.BackgroundTransparency = 1,
-
-end
-
-local function stamina_working()
-
-	Bg_label_Stamina.BackgroundTransparency = 0
-	stamina_Bar.BackgroundTransparency = 0
-	--stamina_Bar.BackgroundTransparency = 1,
-
-end
-
-
 
 updateStaminaUI()
 
@@ -107,15 +62,8 @@ task.spawn(function()
 		task.wait(STAMINA_TICK)
 		if currentStamina < MAX_STAMINA then
 			currentStamina = math.min(MAX_STAMINA, currentStamina + (STAMINA_RECOVER_RATE * STAMINA_TICK))
-
-			stamina_working()
 			updateStaminaUI()
 		end
-		if currentStamina == MAX_STAMINA then
-			stamina_transparent()
-		end
-		
-		
 	end
 end)
 
@@ -127,7 +75,7 @@ end)
 -- ============================
 -- ⚙️ การตั้งค่า
 -- ============================
-local Throw_item_cooldown = 2 -- หน่วงเวลา 2 วินาทีระหว่างการขว้าง
+local Throw_item_cooldown = 5 -- หน่วงเวลา 1 วินาทีระหว่างการขว้าง
 local canThrow = true         -- สถานะว่าพร้อมขว้างไหม
 
 --local Throw_item_cooldown = 1;
@@ -152,45 +100,60 @@ local function forceCancelDrag(woodPart)
 		task.wait(0.05) -- รอให้ระบบปล่อย
 		dragDetector.Enabled = true
 	end
-
-
-
 end
 
 
 -- ฟังก์ชันขว้างกิ่งไม้
--- 🪵 ส่วน throwWood
 local function throwWood(woodPart)
-
-	if not woodPart or not woodPart.Parent then return end
 
 	if not canThrow then
 		print("[Client] ⏳ ยังไม่พร้อมขว้าง (Cooldown)...")
 		return
 	end
 
-	-- 💨 ตรวจสอบ stamina
-	if currentStamina <= 0 then
-		print("[Client] ⚠️ สแตมินาไม่พอในการขว้าง!")
-		return
-	end
 
-	-- 💥 ตอนขว้าง: ลดเหลือ 0 ทันที
-	currentStamina = 0
-	updateStaminaUI()
+	if not woodPart or not woodPart.Parent then return end
 
-	-- ปิดการขว้างระหว่าง cooldown
+
+	-- 🔒 ตั้ง cooldown ก่อนเริ่มขว้าง
 	canThrow = false
+	task.delay(Throw_item_cooldown, function()
+		canThrow = true
+		print("[Client] ✅ พร้อมขว้างอีกครั้งแล้ว!")
+	end)
 
-	-- ดำเนินการขว้าง
+
+	
+	--print(player.Name .. " ขว้างกิ่งไม้!")
+	print("[Client] 🪵 " .. player.Name .. " ขว้างกิ่งไม้: " .. woodPart.Name)
+	
+
+	-- บังคับยกเลิก Drag ก่อน
 	forceCancelDrag(woodPart)
+	
+	-- ปลดล็อค physics
 	woodPart.Anchored = false
 	woodPart.CanCollide = true
-
+	
+	-- คำนวณทิศทางการขว้าง
+	--local camera = workspace.CurrentCamera
+	--local direction = camera.CFrame.LookVector
+	
+	-- คำนวณทิศทางการขว้าง
 	local camera = workspace.CurrentCamera
 	local direction = camera.CFrame.LookVector
 	local velocity = direction * THROW_FORCE
 
+
+	-- ใช้ AssemblyLinearVelocity เพื่อขว้าง
+	--woodPart.AssemblyLinearVelocity = direction * THROW_FORCE
+	--woodPart.AssemblyAngularVelocity = Vector3.new(
+	--	math.random(-5, 5),
+	--	math.random(-5, 5),
+	--	math.random(-5, 5)
+	--)
+
+	-- ใช้ AssemblyLinearVelocity เพื่อขว้าง
 	woodPart.AssemblyLinearVelocity = velocity
 	woodPart.AssemblyAngularVelocity = Vector3.new(
 		math.random(-5, 5),
@@ -198,32 +161,27 @@ local function throwWood(woodPart)
 		math.random(-5, 5)
 	)
 
+	
+	-- ตั้งค่า physics
+	woodPart.CustomPhysicalProperties = PhysicalProperties.new(
+		0.7, -- Density
+		0.3, -- Friction
+		0.2, -- Elasticity (ขว้างแล้วกระเด้งนิดหน่อย)
+		1, -- FrictionWeight
+		1 -- ElasticityWeight
+	)
+
+
+
+	-- 🔥 ส่ง RemoteEvent ไป Server พร้อม velocity
+	print("[Client] 📤 ส่ง RE_OnWoodThrown ไป Server:", woodPart.Name, "Velocity:", velocity)
 	RE_OnWoodThrown:FireServer(woodPart.Name, velocity)
 
-	-- ⏳ เริ่ม cooldown: รอ Throw_item_cooldown วิ แล้วฟื้นกลับ 100
-	task.spawn(function()
-		local cooldownTime = Throw_item_cooldown
-		local step = 0.1 -- หน่วยเวลาอัพเดท (วินาที)
-		local staminaPerStep = MAX_STAMINA / (cooldownTime / step)
-
-		while currentStamina < MAX_STAMINA do
-			task.wait(step)
-			currentStamina = math.min(MAX_STAMINA, currentStamina + staminaPerStep)
-			updateStaminaUI()
-		end
-
-
-
-
-		canThrow = true
-		print("[Client] ✅ พร้อมขว้างอีกครั้งแล้ว!")
-	end)
-
-
+	
+	-- ล้างค่า
+	currentHolding = nil
+	currentDragDetector = nil
 end
-
-
-
 
 -- ฟังก์ชันสร้าง DragDetector สำหรับกิ่งไม้แต่ละชิ้น
 local function setupWoodDragDetector(woodPart)
@@ -333,14 +291,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	
 	-- ตรวจสอบว่าคลิกขวา (Mouse Button 2)
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
-
-		-- ✅ เพิ่มเงื่อนไขเช็ค: ต้องถืออยู่ + กิ่งไม้ยังอยู่ในตาราง draggingWood
-
-		if currentHolding and currentHolding.Parent and draggingWood[currentHolding] then
+		if currentHolding and currentHolding.Parent then
 			print("Debug: คลิกขวา! กำลังบังคับยกเลิก Drag และขว้าง", currentHolding.Name)
 			throwWood(currentHolding)
 		else
-			print("Debug: คลิกขวา แต่ไม่ได้ถือกิ่งไม้อยู่ในมือ")
+			print("Debug: คลิกขวา แต่ไม่ได้ถืออะไร")
 		end
 	end
 end)

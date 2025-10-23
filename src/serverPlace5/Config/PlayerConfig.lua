@@ -7,5 +7,10 @@ return {
     StartHP = 100,
     WalkSpeed = 16,
     JumpPower = 50,
-    RespawnTime = 3
+    RespawnTime = 3,
+
+
+    Cooldown_Throw_item = 2;
+    
+
 }
