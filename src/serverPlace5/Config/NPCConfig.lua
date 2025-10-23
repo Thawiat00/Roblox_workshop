@@ -26,6 +26,12 @@ return {
             Range_Skill = 80
         },
         
+            -- ⭐ เพิ่มส่วนนี้
+        Hit = {
+            StunTime = 1.0,        -- ชะงักกี่วินาที
+            KnockbackPower = 40,  -- ⭐ ปรับค่านี้,   -- แรงกระเด้ง
+        },
+
         Charge = {
             Speed = 30,
             Duration = 5,

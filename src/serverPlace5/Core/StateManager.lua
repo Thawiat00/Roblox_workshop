@@ -24,6 +24,21 @@ function StateManager:Change(stateName)
     end
 end
 
+
+-- ⭐⭐⭐ ฟังก์ชันใหม่สำหรับส่ง extraData ⭐⭐⭐
+function StateManager:Change_extra(stateName, extraData)
+    if self.current and self.states[self.current].Exit then
+        self.states[self.current].Exit(self.data)
+    end
+    
+    self.current = stateName
+    
+    if self.states[stateName] and self.states[stateName].Enter then
+        -- ส่งทั้ง self.data และ extraData
+        self.states[stateName].Enter(self.data, extraData)
+    end
+end
+
 function StateManager:Update(...)
     if self.current and self.states[self.current].Update then
         local nextState = self.states[self.current].Update(self.data, ...)

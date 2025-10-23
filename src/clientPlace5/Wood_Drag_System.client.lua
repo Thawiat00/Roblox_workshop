@@ -10,6 +10,12 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local woodFolder = workspace:WaitForChild("wood")
 
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- 🔗 RemoteEvent สำหรับแจ้ง Server
+local RE_OnWoodThrown = ReplicatedStorage:WaitForChild("Common"):WaitForChild("RE_OnWoodThrown")
+
+
 -- ⚙️ การตั้งค่า
 local CAMERA_DISTANCE = 10 -- ระยะห่างจากกล้อง (studs)
 local THROW_FORCE = 100 -- แรงขว้าง
@@ -39,8 +45,10 @@ end
 local function throwWood(woodPart)
 	if not woodPart or not woodPart.Parent then return end
 	
-	print(player.Name .. " ขว้างกิ่งไม้!")
+	--print(player.Name .. " ขว้างกิ่งไม้!")
+	print("[Client] 🪵 " .. player.Name .. " ขว้างกิ่งไม้: " .. woodPart.Name)
 	
+
 	-- บังคับยกเลิก Drag ก่อน
 	forceCancelDrag(woodPart)
 	
@@ -49,16 +57,31 @@ local function throwWood(woodPart)
 	woodPart.CanCollide = true
 	
 	-- คำนวณทิศทางการขว้าง
+	--local camera = workspace.CurrentCamera
+	--local direction = camera.CFrame.LookVector
+	
+	-- คำนวณทิศทางการขว้าง
 	local camera = workspace.CurrentCamera
 	local direction = camera.CFrame.LookVector
-	
+	local velocity = direction * THROW_FORCE
+
+
 	-- ใช้ AssemblyLinearVelocity เพื่อขว้าง
-	woodPart.AssemblyLinearVelocity = direction * THROW_FORCE
+	--woodPart.AssemblyLinearVelocity = direction * THROW_FORCE
+	--woodPart.AssemblyAngularVelocity = Vector3.new(
+	--	math.random(-5, 5),
+	--	math.random(-5, 5),
+	--	math.random(-5, 5)
+	--)
+
+	-- ใช้ AssemblyLinearVelocity เพื่อขว้าง
+	woodPart.AssemblyLinearVelocity = velocity
 	woodPart.AssemblyAngularVelocity = Vector3.new(
 		math.random(-5, 5),
 		math.random(-5, 5),
 		math.random(-5, 5)
 	)
+
 	
 	-- ตั้งค่า physics
 	woodPart.CustomPhysicalProperties = PhysicalProperties.new(
@@ -68,6 +91,11 @@ local function throwWood(woodPart)
 		1, -- FrictionWeight
 		1 -- ElasticityWeight
 	)
+
+	-- 🔥 ส่ง RemoteEvent ไป Server พร้อม velocity
+	print("[Client] 📤 ส่ง RE_OnWoodThrown ไป Server:", woodPart.Name, "Velocity:", velocity)
+	RE_OnWoodThrown:FireServer(woodPart.Name, velocity)
+
 	
 	-- ล้างค่า
 	currentHolding = nil
@@ -95,6 +123,8 @@ local function setupWoodDragDetector(woodPart)
 		return CFrame.new(targetPos) * (woodPart.CFrame - woodPart.Position)
 	end)
 	
+
+
 	-- 🎈 ตั้งค่าเริ่มต้น
 	woodPart.Anchored = false
 	
@@ -120,6 +150,8 @@ local function setupWoodDragDetector(woodPart)
 		local targetPos = cursorRay.Origin + (cursorRay.Direction.Unit * CAMERA_DISTANCE)
 		woodPart.CFrame = CFrame.new(targetPos) * (woodPart.CFrame - woodPart.Position)
 	end)
+
+	
 	
 	dragDetector.DragContinue:Connect(function(playerWhoClicked, cursorRay, viewFrame)
 		-- อัพเดทตำแหน่งล่าสุด
