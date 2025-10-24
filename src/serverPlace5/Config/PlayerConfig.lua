@@ -11,6 +11,9 @@ return {
 
 
     Cooldown_Throw_item = 2;
+
     
+    -- จำนวนสูงสุดของไอเท็มที่ถือได้พร้อมกัน
+    max_holding_items = 1,
 
 }

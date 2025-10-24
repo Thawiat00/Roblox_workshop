@@ -17,7 +17,17 @@ local Players = game:GetService("Players")
 
 local ItemConfig = require(game.ServerScriptService.ServerLocal.Config.ItemConfig)
 
+local PlayerConfig = require(game.ServerScriptService.ServerLocal.Config.PlayerConfig)
 
+
+-- ตรวจสอบจำนวนของที่ถืออยู่
+--local player = get
+
+--local backpack = Players:FindFirstChild("Backpack")
+--local backpack = player:FindFirstChild("Backpack")
+
+--local character = Players.Character
+local toolCount = 0
 
 -- สร้าง/รับ Remote Events
 
@@ -29,13 +39,28 @@ local placeBookEvent = Instance.new("RemoteEvent")
 placeBookEvent.Name = "PlaceBook"
 placeBookEvent.Parent = Common
 
+
+local notifyEvent = Instance.new("RemoteEvent")
+notifyEvent.Name = "NotifyClient"
+notifyEvent.Parent = Common
+
+
+
+
 print("✅ [Server] Remote Events created")
+
+
+
+
+
+
+
 
 -- ฟังก์ชันหยิบสมุด
 equipBookEvent.OnServerEvent:Connect(function(player, bookObject)
     print("📥 [Server] Received pickup request from", player.Name)
     
-    local character = player.Character
+      local character = player.Character
     if not character then 
         warn("⚠️ [Server] No character found")
         return 
@@ -47,6 +72,30 @@ equipBookEvent.OnServerEvent:Connect(function(player, bookObject)
         return 
     end
     
+
+        -- ✅ ตรวจสอบจำนวนของที่ถืออยู่
+    local backpack = player:FindFirstChild("Backpack")
+    local toolCount = 0
+
+
+    if backpack then
+        toolCount += #backpack:GetChildren()
+    end
+
+    for _, tool in pairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            toolCount += 1
+        end
+    end
+
+    if toolCount >= PlayerConfig.max_holding_items then
+        warn("⚠️ [Server] " .. player.Name .. " is already holding max items (" .. toolCount .. ")")
+        notifyEvent:FireClient(player, "คุณถือของเต็มแล้ว (สูงสุด " .. PlayerConfig.max_holding_items .. " ชิ้น)")
+        return
+    end
+
+
+
     -- ตรวจสอบว่า bookObject ยังมีอยู่
     if not bookObject or not bookObject.Parent then
         warn("⚠️ [Server] Book object is nil or destroyed")

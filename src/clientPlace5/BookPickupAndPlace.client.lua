@@ -22,6 +22,8 @@ end
 local equipBookEvent = Common:WaitForChild("EquipBook", 10)
 local placeBookEvent = Common:WaitForChild("PlaceBook", 10)
 
+local notifyEvent = Common:WaitForChild("NotifyClient", 10)
+
 if not equipBookEvent or not placeBookEvent then
     warn("❌ [Client] Cannot find Remote Events!")
     return
@@ -179,5 +181,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
 end)
+
+
+notifyEvent.OnClientEvent:Connect(function(message)
+    print("⚠️ [Client] Notification:", message)
+    -- ที่นี่อาจจะใช้ GUI / Billboard / TextLabel เพื่อแสดงข้อความเตือน
+end)
+
 
 print("✅ [Client] BookPickupAndPlace loaded successfully")
