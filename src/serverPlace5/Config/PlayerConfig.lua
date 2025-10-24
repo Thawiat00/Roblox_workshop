@@ -16,4 +16,13 @@ return {
     -- จำนวนสูงสุดของไอเท็มที่ถือได้พร้อมกัน
     max_holding_items = 1,
 
+
+    walk = {
+        speed = 15,
+    },
+
+    Run = {
+        speed = 25,
+    },
+
 }
