@@ -6,14 +6,23 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 --local sprintEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("SprintEvent")
-local sprintEvent = ReplicatedStorage:FindFirstChild("Common"):FindFirstChild("SprintEvent")
+local sprintEvent = ReplicatedStorage:WaitForChild("Common"):WaitForChild("SprintEvent")
 
 
 
-local normalSpeed = 16
-local sprintSpeed = 32
+-- ✅ โหลด config
+--local PlayerConfig = require(game.ServerScriptService.ServerLocal.Config.PlayerConfig)
+
+
+
+
+
+local humanoid = nil
 local isSprinting = false
 
+
+
+-- ✅ ไม่ require config แล้ว เพราะให้ server คุมค่าความเร็วทั้งหมด
 local function getHumanoid()
 	local character = player.Character or player.CharacterAdded:Wait()
 	return character:WaitForChild("Humanoid")
@@ -26,7 +35,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then return end
 	if input.KeyCode == Enum.KeyCode.LeftShift then
 		isSprinting = true
-		humanoid.WalkSpeed = sprintSpeed
+		--humanoid.WalkSpeed = sprintSpeed
 		sprintEvent:FireServer(true)
 	end
 end)
@@ -35,12 +44,22 @@ end)
 UserInputService.InputEnded:Connect(function(input)
 	if input.KeyCode == Enum.KeyCode.LeftShift then
 		isSprinting = false
-		humanoid.WalkSpeed = normalSpeed
+		--humanoid.WalkSpeed = normalSpeed
 		sprintEvent:FireServer(false)
 	end
 end)
 
+-- ✅ รอ Server ส่งค่าความเร็วกลับมา แล้วปรับที่ Client ให้ตรงกัน
+sprintEvent.OnClientEvent:Connect(function(speed)
+	if humanoid then
+		humanoid.WalkSpeed = speed
+		print("[CLIENT] 🏃 Speed synced from server:", speed)
+	end
+end)
+
+
+
 player.CharacterAdded:Connect(function(character)
 	humanoid = character:WaitForChild("Humanoid")
-	humanoid.WalkSpeed = normalSpeed
+--	humanoid.WalkSpeed = normalSpeed
 end)

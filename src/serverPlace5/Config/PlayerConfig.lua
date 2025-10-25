@@ -25,4 +25,10 @@ return {
         speed = 25,
     },
 
+
+    Movement = {
+        WalkSpeed = 16,
+        RunSpeed = 25,
+    },
+
 }
