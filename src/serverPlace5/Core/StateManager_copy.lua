@@ -39,33 +39,12 @@ function StateManager:Change_extra(stateName, extraData)
     end
 end
 
--- 🧩 เพิ่ม debug protection ใน Update
--- 🛡️ เพิ่มระบบ try-catch + debug log ใน Update
 function StateManager:Update(...)
-    if not self.current then return end
-
-    local currentState = self.states[self.current]
-    if not currentState or not currentState.Update then return end
-
-    local success, result = pcall(function(...)
-        return currentState.Update(self.data, ...)
-    end, ...)
-
-    if not success then
-        -- 🐛 Debug log error
-        warn(("⚠️ [StateManager Error] State '%s' encountered an error during Update:\n%s"):format(
-            tostring(self.current),
-            tostring(result)
-        ))
-        warn("🔍 ตรวจสอบโค้ดในสคริปต์ของ State นั้นๆ เช่น State_Idle.lua หรือ State_Run.lua")
-
-        -- ถ้าอยากให้เกมไม่พัง ให้ return เฉย ๆ
-        return
-    end
-
-    -- ถ้ามีการ return nextState จาก state.Update()
-    if result and result ~= self.current then
-        self:Change(result)
+    if self.current and self.states[self.current].Update then
+        local nextState = self.states[self.current].Update(self.data, ...)
+        if nextState and nextState ~= self.current then
+            self:Change(nextState)
+        end
     end
 end
 

@@ -8,7 +8,17 @@ local TargetFinder = require(game.ServerScriptService.ServerLocal.NPCAI.Utils.Ta
 
 -- โหลด States
 local State_Idle = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_Idle)
+
+local State_Patrol = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_Patrol)  -- ✅ เพิ่ม
+
+local State_FollowFootprint = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_FollowFootprint)  -- ✅ เพิ่ม
+
+
 local State_Chase = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_Chase)
+
+
+
+
 local State_Attack = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_Attack)
 local State_Charge = require(game.ServerScriptService.ServerLocal.NPCAI.NPCStates.State_Charge)
 
@@ -44,7 +54,7 @@ function NPCAIController.Create(model)
         canCharge = true,
         chargeStartTime = nil,
         
-
+        -- Skills
         -- ✅ เพิ่มสำหรับสกิล
         skillCooldowns = {},
         isUsingSkill = false,
@@ -53,11 +63,16 @@ function NPCAIController.Create(model)
         skillAnimationTime = nil,
 
 
-
+        -- Hit State
         -- ✅ เพิ่มสำหรับ Hit State
         isHit = false,
         lastHitTime = 0,
 
+
+        -- ✅ เพิ่มสำหรับ Patrol & Footprint
+        spawnPosition = nil,  -- จะถูกตั้งค่าตอนเข้า Patrol
+        footprintScanTimer = 0,
+        idleWaitTimer = 0,
 
 
         -- Update
@@ -75,6 +90,12 @@ function NPCAIController.Create(model)
     -- สร้าง State Machine
     local stateMachine = StateManager.new({
         Idle = State_Idle,
+        
+        Patrol = State_Patrol,  -- ✅ เพิ่ม
+        FollowFootprint = State_FollowFootprint,  -- ✅ เพิ่ม
+
+
+
         Chase = State_Chase,
         Attack = State_Attack,
         Charge = State_Charge,
