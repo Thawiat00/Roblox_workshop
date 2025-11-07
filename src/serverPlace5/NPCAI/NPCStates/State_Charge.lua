@@ -9,6 +9,7 @@ return {
             return "Chase"
         end
 
+        
         npc.humanoid.WalkSpeed = Config.States.Charge.Speed
         npc.canCharge = true
         npc.chargeStartTime = tick()
@@ -19,6 +20,8 @@ return {
         if not target then 
             return "Idle"
         end
+
+
 
         local distance = (npc.root.Position - target.Position).Magnitude
 
@@ -42,3 +45,8 @@ return {
         -- ออก state
     end
 }
+
+
+
+
+

@@ -5,10 +5,11 @@
 
 return {
     Detection = {
-        Range = 15,
-        LoseRange = 20
+        Range = 20,
+        LoseRange = 22
     },
     
+
     States = {
         Idle = {
             Speed = 0,
@@ -61,12 +62,12 @@ return {
 
         -- ⭐ เพิ่ม State ใหม่สำหรับเดินตามรอยเท้า
         FollowFootprint = {
-            Speed = 12,                    -- ความเร็วเดิน (ช้ากว่า Chase)
-            ScanRadius = 30,               -- รัศมีสแกนรอยเท้า
-            ScanInterval = 2,              -- สแกนใหม่ทุก 2 วินาที
+            Speed = 11,                    -- ความเร็วเดิน (ช้ากว่า Chase)
+            ScanRadius = 35,               -- รัศมีสแกนรอยเท้า
+            ScanInterval = 1,              -- สแกนใหม่ทุก 2 วินาที
             StopDistance = 3,              -- ใกล้แค่ไหนถือว่าถึงรอยเท้า
-            MaxLostTime = 10,              -- หาไม่เจอรอยเท้ากี่วินาทีให้กลับ Idle
-            PlayerDetectRange = 10,        -- ระยะตรวจจับผู้เล่นระหว่างเดินตาม
+            MaxLostTime = 3,              -- หาไม่เจอรอยเท้ากี่วินาทีให้กลับ Idle
+            PlayerDetectRange = 20,        -- ระยะตรวจจับผู้เล่นระหว่างเดินตาม
             FootprintTag = "PlayerFootprint" -- Tag สำหรับรอยเท้า
         },
 

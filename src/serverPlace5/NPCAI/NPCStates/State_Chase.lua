@@ -4,17 +4,67 @@
 local Config = require(game.ServerScriptService.ServerLocal.Config.NPCConfig)
 local PathfindingHelper = require(game.ServerScriptService.ServerLocal.NPCAI.Utils.PathfindingHelper)
 
+local EventBus = require(game.ServerScriptService.ServerLocal.Core.EventBus)
+
+
+-- 🔥 เพิ่มการเชื่อม PerkManager
+local PerkManager = require(game.ServerScriptService.ServerLocal.PerkSystem.PerkManager)
+
+
+
+
 return {
     Enter = function(npc)
         npc.humanoid.WalkSpeed = Config.States.Chase.Speed
+
+        npc.pathTimer = 0
+
+
         print("🏃", npc.model.Name, "→ Chase")
+
+
+      -- 🔥 แจ้ง EventBus ว่าเริ่มไล่ (เพิ่มเฉพาะนี้)
+        if npc.lastTarget then
+            local player = game.Players:GetPlayerFromCharacter(npc.lastTarget.Parent)
+            if player then
+                EventBus:Emit("NPCStartChasing", npc, player)
+            end
+        end
+
     end,
     
     Update = function(npc, target, distance)
         if not target then 
+
+     -- 🔥 แจ้ง EventBus ว่าหยุดไล่ (เพิ่มเฉพาะนี้)
+            if npc.lastTarget then
+                local player = game.Players:GetPlayerFromCharacter(npc.lastTarget.Parent)
+                if player then
+                    EventBus:Emit("NPCStopChasing", npc, player)
+                end
+            end
+
+
+
             return "Idle" 
         end
         
+  -- 🔥 เก็บ Target ล่าสุด (เพิ่ม 1 บรรทัด)
+        npc.lastTarget = target
+
+
+               -- 🔥 เช็คว่าผู้เล่นหายตัวหรือไม่ (เพิ่มแค่นี้)
+        local player = game.Players:GetPlayerFromCharacter(target.Parent)
+        if player and player.Character then
+            local isInvisible = player.Character:GetAttribute("IsInvisible")
+            if isInvisible then
+                print("👻", npc.model.Name, "lost target (invisible)")
+                EventBus:Emit("NPCStopChasing", npc, player)
+                return "Idle"
+            end
+        end
+        
+
         -- หายไกลเกินไป
         if distance > Config.Detection.LoseRange then
             return "Idle"
@@ -38,6 +88,8 @@ return {
             npc.waypointIndex = 1
         end
         
+
+
         -- เดินตาม waypoint
         if npc.waypoints and npc.waypoints[npc.waypointIndex] then
             local wp = npc.waypoints[npc.waypointIndex]
@@ -59,5 +111,13 @@ return {
     end,
     
     Exit = function(npc)
+
+        -- 🔥 แจ้ง EventBus ว่าออกจาก Chase (เพิ่มเฉพาะนี้)
+        if npc.lastTarget then
+            local player = game.Players:GetPlayerFromCharacter(npc.lastTarget.Parent)
+            if player then
+                EventBus:Emit("NPCStopChasing", npc, player)
+            end
+        end
     end
 }
